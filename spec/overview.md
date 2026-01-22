@@ -13,25 +13,32 @@ An agentic system for reverse engineering legacy computer code, focusing on MOS6
 
 ## Architecture Overview
 
-```
-┌─────────────────────────────────────────────────────────┐
-│                    CLI Interface                         │
-└─────────────────────┬───────────────────────────────────┘
-                      │
-┌─────────────────────▼───────────────────────────────────┐
-│                  Binary Loader                           │
-│              (file reading, memory mapping)              │
-└─────────────────────┬───────────────────────────────────┘
-                      │
-┌─────────────────────▼───────────────────────────────────┐
-│               Disassembly Engine                         │
-│         (flow analysis, instruction decoding)            │
-└─────────────────────┬───────────────────────────────────┘
-                      │
-┌─────────────────────▼───────────────────────────────────┐
-│                 Output Formatter                         │
-│            (assembly listing, hex dump)                  │
-└─────────────────────────────────────────────────────────┘
+```mermaid
+flowchart TB
+    CLI[CLI Interface]
+
+    subgraph new [new command]
+        BIN[Binary File]
+        LOADER[Binary Loader]
+        DISASM[Disassembly Engine]
+    end
+
+    STATE[State File .orc]
+
+    subgraph export [export command]
+        FORMATTER[Output Formatter]
+        MAIN[Main .asm File]
+        SEGMENTS[Segment Files]
+    end
+
+    CLI --> new
+    CLI --> export
+    BIN --> LOADER
+    LOADER --> DISASM
+    DISASM --> STATE
+    STATE --> FORMATTER
+    FORMATTER --> MAIN
+    FORMATTER --> SEGMENTS
 ```
 
 ## Feature Roadmap
