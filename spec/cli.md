@@ -85,9 +85,10 @@ Origin:      $0801
 Entry:       $0810
 Binary size: 4096 bytes
 Symbols:     23
-  Functions: 8
-  Labels:    12
-  Variables: 3
+  Subroutines: 8
+  Labels:      12
+  Bytes:       2
+  Words:       1
 Regions:
   Code:      2048 bytes
   Data:      2048 bytes

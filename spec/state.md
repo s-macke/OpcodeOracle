@@ -73,13 +73,13 @@ Maps addresses to arrays of symbol definitions. Multiple symbols per address are
   "0x0801": [
     {
       "name": "main",
-      "type": "function",
+      "type": "entry",
       "source": "user",
       "primary": true
     },
     {
-      "name": "start",
-      "type": "function",
+      "name": "L_0801",
+      "type": "entry",
       "source": "auto",
       "primary": false
     }
@@ -112,14 +112,14 @@ Maps addresses to arrays of symbol definitions. Multiple symbols per address are
 
 #### Symbol Types
 
-| Type       | Description                              |
-|------------|------------------------------------------|
-| `function` | Subroutine entry point (target of JSR)   |
-| `label`    | Code label (target of JMP/branch)        |
-| `byte`     | Single byte data (1 byte)                |
-| `word`     | Word data (2 bytes, little-endian)       |
-| `constant` | Named constant value                     |
-| `entry`    | Program entry point                      |
+| Type        | Description                              |
+|-------------|------------------------------------------|
+| `subroutine`| Subroutine entry point (target of JSR)   |
+| `label`     | Code label (target of JMP/branch)        |
+| `byte`      | Single byte data (1 byte)                |
+| `word`      | Word data (2 bytes, little-endian)       |
+| `constant`  | Named constant value                     |
+| `entry`     | Program entry point                      |
 
 #### Symbol Sources
 
@@ -229,8 +229,8 @@ Maps addresses to their references:
       {"name": "start", "type": "entry", "source": "user", "primary": true}
     ],
     "0x1000": [
-      {"name": "game_loop", "type": "function", "source": "user", "primary": true},
-      {"name": "main_loop", "type": "function", "source": "auto"}
+      {"name": "game_loop", "type": "subroutine", "source": "user", "primary": true},
+      {"name": "SUB_1000", "type": "subroutine", "source": "auto"}
     ],
     "0xD020": [
       {"name": "BORDER", "type": "byte", "source": "c64rom", "primary": true}

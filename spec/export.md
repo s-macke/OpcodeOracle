@@ -74,7 +74,7 @@ L_0815:      JMP L_0815        ; Main loop
 | Indirect         | `($XXXX)` | `JMP ($FFFC)`                       |
 | Indexed Indirect | `($XX,X)` | `LDA ($10,X)`                       |
 | Indirect Indexed | `($XX),Y` | `LDA ($10),Y`                       |
-| Relative         | `$XXXX`   | `BNE $0820` (absolute target shown) |
+| Relative         | `L_XXXX`  | `BNE L_0820` (label if target known) |
 
 ## Data Section Format
 

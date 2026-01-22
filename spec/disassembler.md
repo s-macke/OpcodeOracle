@@ -92,9 +92,10 @@ Where PC is the address of the branch instruction.
 ### Label Generation
 
 Labels are automatically generated for:
-- Branch targets: `L_XXXX` (where XXXX is the hex address)
-- Subroutine entry points: `SUB_XXXX`
-- The main entry point: `ENTRY`
+- Branch/jump targets: `L_XXXX` (where XXXX is the hex address)
+- Subroutine entry points (JSR targets): `SUB_XXXX`
+
+User-defined symbol names from the state file override auto-generated labels.
 
 ## Error Handling
 
