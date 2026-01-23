@@ -23,7 +23,7 @@ Core data structures and state management - must be implemented first.
 | State file format          | Planned | [state.md](state.md)                       |
 | Symbol table               | Planned | [symbol-table.md](symbol-table.md)         |
 | Annotation table           | Planned | [annotation-table.md](annotation-table.md) |
-| Segment table              | Planned | [segments-table.md](segments-table.md)     |
+| Region table               | Planned | [regions-table.md](regions-table.md)       |
 | Cross-reference table      | Planned | [xref-table.md](xref-table.md)             |
 
 ### Phase 2: State Interface Implementation
@@ -84,7 +84,7 @@ Output assembly listing from state file. All output files include auto-generated
 | [state-interface.md](state-interface.md)   | Go interface for state manipulation        |
 | [symbol-table.md](symbol-table.md)         | Symbol types, struct, and interface        |
 | [annotation-table.md](annotation-table.md) | Annotation struct and interface            |
-| [segments-table.md](segments-table.md)     | Segment types, struct, and interface       |
+| [regions-table.md](regions-table.md)       | Region types, struct, and interface        |
 | [xref-table.md](xref-table.md)             | Cross-reference types, struct, and interface |
 | [disassembler.md](disassembler.md)         | Binary reading, parsing, and flow analysis |
 | [export.md](export.md)                     | Assembly output format specification       |

@@ -37,7 +37,7 @@ type State interface {
     // Sub-tables
     Symbols() SymbolTable
     Annotations() AnnotationTable
-    Segments() SegmentTable
+    Regions() RegionTable
     XRefs() XRefTable
 }
 ```
@@ -59,7 +59,7 @@ type State interface {
 | `HasEntryPoint(addr uint16) bool`       | Check if address is an entry point         |
 | `Symbols() SymbolTable`                 | Get symbol table interface                 |
 | `Annotations() AnnotationTable`         | Get annotation table interface             |
-| `Segments() SegmentTable`               | Get segment table interface                |
+| `Regions() RegionTable`                 | Get region table interface                 |
 | `XRefs() XRefTable`                     | Get cross-reference table interface        |
 
 ## SymbolTable Interface
@@ -143,11 +143,14 @@ for addr, symbols := range state.Symbols().All() {
     }
 }
 
-// Check segments
-segment := state.Segments().At(0x0900)
-if segment != nil && segment.Type == SegmentData {
+// Check region type at address
+region := state.Regions().At(0x0900)
+if region.Type == RegionData {
     fmt.Println("Address is in data section")
 }
+
+// Mark address range as code
+state.Regions().Set(0x0900, 0x09FF, RegionCode)
 ```
 
 ### Adding User Annotations
@@ -178,5 +181,4 @@ state.Save("game.orc")
 | Version mismatch (Load) | Return error |
 | Write permission denied (Save) | Return error |
 | Address outside binary (ReadByte/ReadWord) | Return error |
-| Segment overlap (Add segment) | Return error |
 | Index out of range (Remove annotation) | Return error |

@@ -44,7 +44,7 @@ opcodeoracle/
 ├── internal/
 │   ├── state/              # State types and file operations
 │   ├── symbols/            # Symbol table implementation
-│   ├── segments/           # Segment table implementation
+│   ├── regions/            # Region table implementation
 │   ├── annotations/        # Annotation table implementation
 │   ├── xrefs/              # Cross-reference table implementation
 │   ├── disasm/             # Disassembly engine
@@ -61,7 +61,7 @@ opcodeoracle/
 | `cmd/opcodeoracle/`      | Main entry point, CLI argument parsing         |
 | `internal/state/`        | State struct, JSON serialization, validation   |
 | `internal/symbols/`      | Symbol types and SymbolTable interface         |
-| `internal/segments/`     | Segment types and SegmentTable interface       |
+| `internal/regions/`      | Region types and RegionTable interface         |
 | `internal/annotations/`  | Annotation types and AnnotationTable interface |
 | `internal/xrefs/`        | XRef types and XRefTable interface             |
 | `internal/disasm/`       | Flow-following disassembler, opcode decoding   |
@@ -74,6 +74,8 @@ opcodeoracle/
 
 ### State
 
+This struct maps directly to the JSON structure in state files (`.orc`). See [state.md](state.md) for the JSON serialization format.
+
 ```go
 type State struct {
     Version     string
@@ -82,7 +84,7 @@ type State struct {
     EntryPoints []uint16
     Symbols     map[uint16][]Symbol
     Annotations map[uint16][]Annotation
-    Segments    []Segment
+    Regions     []Region
 }
 ```
 
@@ -94,7 +96,7 @@ type State struct {
 | `EntryPoints` | []uint16                   | Entry point addresses                          |
 | `Symbols`     | map[uint16][]Symbol        | See [symbol-table.md](symbol-table.md)         |
 | `Annotations` | map[uint16][]Annotation    | See [annotation-table.md](annotation-table.md) |
-| `Segments`    | []Segment                  | See [segments-table.md](segments-table.md)     |
+| `Regions`     | []Region                   | See [regions-table.md](regions-table.md)       |
 
 ### Metadata
 

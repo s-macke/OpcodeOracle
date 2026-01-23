@@ -18,7 +18,7 @@ State files are JSON documents with the following structure:
   "entryPoints": [ ... ],
   "symbols": { ... },
   "annotations": { ... },
-  "segments": [ ... ]
+  "regions": [ ... ]
 }
 ```
 
@@ -34,7 +34,7 @@ State files are JSON documents with the following structure:
 | `entryPoints` | array  | Yes       | List of entry point addresses           |
 | `symbols`     | object | No        | User-defined and auto-generated symbols |
 | `annotations` | object | No        | Comments and notes                      |
-| `segments`    | array  | No        | Memory region classifications           |
+| `regions`     | array  | No        | Memory region classifications           |
 
 ### Metadata Object
 
