@@ -2,7 +2,7 @@
 
 This document specifies the Go interface for interacting with OpcodeOracle state files.
 
-See [state.md](state.md) for the JSON file format specification.
+See [state-file.md](state-file.md) for the JSON file format specification.
 See [architecture.md](architecture.md) for type and struct definitions.
 
 ## Overview

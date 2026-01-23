@@ -123,7 +123,7 @@ Maps addresses to arrays of symbol definitions. Multiple symbols per address are
 | `c64rom`  | Imported from C64 ROM/Kernal symbol table  |
 | `import`  | Imported from external symbol file         |
 
-### Annotations Object (Future)
+### Annotations Object
 
 Maps addresses to arrays of comments (multiple annotations per address supported):
 
@@ -139,7 +139,7 @@ Maps addresses to arrays of comments (multiple annotations per address supported
 }
 ```
 
-### Regions Array (Future)
+### Regions Array
 
 Defines memory region classifications:
 
@@ -153,8 +153,7 @@ Defines memory region classifications:
   {
     "start": "0x0900",
     "end": "0x0A00",
-    "type": "data",
-    "format": "string"
+    "type": "data"
   }
 ]
 ```
@@ -163,9 +162,6 @@ Defines memory region classifications:
 |------------|-------------------------|
 | `code`     | Executable instructions |
 | `data`     | Generic data            |
-| `string`   | ASCII/PETSCII text      |
-| `table`    | Jump/data table         |
-| `graphics` | Sprite/bitmap data      |
 
 ## Example: Minimal State File
 
@@ -218,15 +214,15 @@ Defines memory region classifications:
   },
   "annotations": {
     "0x0801": [
-      {"comment": "Program entry - initialization"}
+      {"comment": "Program entry - initialization", "author": "user"}
     ],
     "0x1000": [
-      {"comment": "Main game loop"}
+      {"comment": "Main game loop", "author": "user"}
     ]
   },
   "regions": [
     {"start": "0x0801", "end": "0x0FFF", "type": "code"},
-    {"start": "0x1800", "end": "0x1900", "type": "string"}
+    {"start": "0x1800", "end": "0x1900", "type": "data"}
   ]
 }
 ```

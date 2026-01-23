@@ -20,7 +20,7 @@ Core data structures and state management - must be implemented first.
 | Feature                    | Status  | Specification                              |
 |----------------------------|---------|--------------------------------------------|
 | Core type definitions      | Planned | [architecture.md](architecture.md)         |
-| State file format          | Planned | [state.md](state.md)                       |
+| State file format          | Planned | [state-file.md](state-file.md)                       |
 | Symbol table               | Planned | [symbol-table.md](symbol-table.md)         |
 | Annotation table           | Planned | [annotation-table.md](annotation-table.md) |
 | Region table               | Planned | [regions-table.md](regions-table.md)       |
@@ -58,9 +58,9 @@ Output assembly listing from state file. All output files include auto-generated
 
 | Feature                | Status  | Specification        |
 |------------------------|---------|----------------------|
-| C64 ROM symbols        | Planned | [state.md](state.md) |
+| C64 ROM symbols        | Planned | [state-file.md](state-file.md) |
 | C64 I/O register names | Planned | TBD                  |
-| Cross-reference tables | Planned | [state.md](state.md) |
+| Cross-reference tables | Planned | [state-file.md](state-file.md) |
 | Subroutine detection   | Planned | TBD                  |
 
 ### Phase 6: Agentic Features
@@ -80,7 +80,7 @@ Output assembly listing from state file. All output files include auto-generated
 | [cli.md](cli.md)                           | Command line interface                     |
 | [opcodes.go](opcodes.go)                   | MOS6502 instruction definitions            |
 | [architecture.md](architecture.md)         | Core Go type and struct definitions        |
-| [state.md](state.md)                       | JSON state file format for save/load       |
+| [state-file.md](state-file.md)                       | JSON state file format for save/load       |
 | [state-interface.md](state-interface.md)   | Go interface for state manipulation        |
 | [symbol-table.md](symbol-table.md)         | Symbol types, struct, and interface        |
 | [annotation-table.md](annotation-table.md) | Annotation struct and interface            |

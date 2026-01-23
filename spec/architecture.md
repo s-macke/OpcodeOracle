@@ -2,7 +2,7 @@
 
 This document specifies the core Go type definitions used throughout OpcodeOracle.
 
-See [state.md](state.md) for the JSON file format specification.
+See [state-file.md](state-file.md) for the JSON file format specification.
 
 ## Program Flow
 
@@ -74,7 +74,7 @@ opcodeoracle/
 
 ### State
 
-This struct maps directly to the JSON structure in state files (`.orc`). See [state.md](state.md) for the JSON serialization format.
+This struct maps directly to the JSON structure in state files (`.orc`). See [state-file.md](state-file.md) for the JSON serialization format.
 
 ```go
 type State struct {

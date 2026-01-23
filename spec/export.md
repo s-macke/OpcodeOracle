@@ -11,6 +11,39 @@ OpcodeOracle always generates both outputs:
 1. **Main disassembly file** - Complete disassembly in one file
 2. **Segment files** - Separate file per segment in `segments/` subdirectory
 
+## Segment Generation
+
+Segment files are derived by combining:
+
+1. **Regions** - define code/data type boundaries
+2. **Symbols** - identify subroutines/entries within code regions
+
+### Rules
+
+1. **Non-code regions** (data) → one `_dat.asm` file per region
+
+2. **Code regions** are split by subroutine/entry symbols:
+   - Code at region start without a subroutine symbol → `_code.asm`
+   - Each `SymbolSubroutine` or `SymbolEntry` starts a new `_sub.asm`
+
+### Example
+
+Given:
+- Region $0800-$0FFF: code
+- Region $1000-$10FF: data
+- Symbol at $0800: entry
+- Symbol at $0900: subroutine
+- Symbol at $0A00: subroutine
+
+Produces:
+```
+segments/
+├── 0x0800_sub.asm    # Entry at $0800, ends at $08FF
+├── 0x0900_sub.asm    # Subroutine at $0900, ends at $09FF
+├── 0x0A00_sub.asm    # Subroutine at $0A00, ends at $0FFF
+└── 0x1000_dat.asm    # Data region
+```
+
 ## Auto-Generated Header
 
 All output files **must** include an auto-generated header:

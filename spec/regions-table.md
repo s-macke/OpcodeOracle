@@ -2,7 +2,7 @@
 
 This document specifies the region system for OpcodeOracle.
 
-See [state.md](state.md) for the JSON file format.
+See [state-file.md](state-file.md) for the JSON file format.
 See [state-interface.md](state-interface.md) for the full state interface.
 
 ## Overview
@@ -19,9 +19,6 @@ type RegionType string
 const (
     RegionCode     RegionType = "code"
     RegionData     RegionType = "data"
-    RegionString   RegionType = "string"
-    RegionTable    RegionType = "table"
-    RegionGraphics RegionType = "graphics"
 )
 ```
 
@@ -29,9 +26,6 @@ const (
 |------------|------------------------------------------|
 | `code`     | Executable instructions                  |
 | `data`     | Generic data bytes                       |
-| `string`   | Text string (PETSCII or ASCII)           |
-| `table`    | Lookup table (jump table, data table)    |
-| `graphics` | Bitmap or sprite data                    |
 
 ## Struct Definition
 

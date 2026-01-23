@@ -43,7 +43,7 @@ opcodeoracle new <binary-file> -e <entry> -o <origin>
 1. Reads the binary file
 2. Creates state file `<binary-name>.orc`
 3. Runs flow-following disassembly from entry point
-4. Populates symbols, regions, and code/data classification (see [state.md](state.md))
+4. Populates symbols, regions, and code/data classification (see [state-file.md](state-file.md))
 5. Saves state file
 
 ### Examples

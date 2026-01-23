@@ -2,7 +2,7 @@
 
 This document specifies the annotation system for OpcodeOracle.
 
-See [state.md](state.md) for the JSON file format.
+See [state-file.md](state-file.md) for the JSON file format.
 See [state-interface.md](state-interface.md) for the full state interface.
 
 ## Overview
