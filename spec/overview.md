@@ -43,24 +43,23 @@ flowchart TB
 
 ## Feature Roadmap
 
-### Phase 0: Foundation
+### Phase 1: Foundation
 
 Core data structures and state management - must be implemented first.
 
-| Feature                    | Status  | Specification            |
-|----------------------------|---------|--------------------------|
-| MOS6502 opcode definitions | Done    | [opcodes.go](opcodes.go) |
-| State file format          | Done    | [state.md](state.md)     |
-| Symbol table format        | Done    | [state.md](state.md)     |
+| Feature                    | Status | Specification                      |
+|----------------------------|--------|------------------------------------|
+| Core type definitions      | Done   | [architecture.md](architecture.md) |
+| State file format          | Done   | [state.md](state.md)               |
+| MOS6502 opcode definitions | Done   | [opcodes.go](opcodes.go)           |
 
-### Phase 1: State File Implementation
+### Phase 2: State Interface Implementation
 
-| Feature                | Status  | Specification        |
-|------------------------|---------|----------------------|
-| State file load (JSON) | Planned | [state.md](state.md) |
-| State file save (JSON) | Planned | [state.md](state.md) |
+| Feature         | Status | Specification                            |
+|-----------------|--------|------------------------------------------|
+| State interface | Done   | [state-interface.md](state-interface.md) |
 
-### Phase 2: Binary Reading & Disassembly
+### Phase 3: Binary Reading & Disassembly
 
 | Feature                    | Status  | Specification                      |
 |----------------------------|---------|------------------------------------|
@@ -69,7 +68,7 @@ Core data structures and state management - must be implemented first.
 | Flow-following disassembly | Planned | [disassembler.md](disassembler.md) |
 | Populate state from binary | Planned | [disassembler.md](disassembler.md) |
 
-### Phase 3: Output Generation
+### Phase 4: Output Generation
 
 Output assembly listing from state file. All output files include auto-generated headers.
 
@@ -81,7 +80,7 @@ Output assembly listing from state file. All output files include auto-generated
 | Data section hex dump      | Planned | [export.md](export.md)     |
 | Symbol resolution          | Planned | [export.md](export.md)     |
 
-### Phase 4: Enhanced Analysis
+### Phase 5: Enhanced Analysis
 
 | Feature                | Status  | Specification        |
 |------------------------|---------|----------------------|
@@ -90,7 +89,7 @@ Output assembly listing from state file. All output files include auto-generated
 | Cross-reference tables | Planned | [state.md](state.md) |
 | Subroutine detection   | Planned | TBD                  |
 
-### Phase 5: Agentic Features
+### Phase 6: Agentic Features
 
 | Feature                     | Status  | Specification |
 |-----------------------------|---------|---------------|
@@ -101,14 +100,19 @@ Output assembly listing from state file. All output files include auto-generated
 
 ## Specification Documents
 
-| Document                           | Description                                |
-|------------------------------------|--------------------------------------------|
-| [overview.md](overview.md)         | This file - project overview and roadmap   |
-| [cli.md](cli.md)                   | Command line interface                     |
-| [opcodes.go](opcodes.go)           | MOS6502 instruction definitions            |
-| [state.md](state.md)               | JSON state file format for save/load       |
-| [disassembler.md](disassembler.md) | Binary reading, parsing, and flow analysis |
-| [export.md](export.md)             | Assembly output format specification       |
+| Document                                   | Description                                |
+|--------------------------------------------|--------------------------------------------|
+| [overview.md](overview.md)                 | This file - project overview and roadmap   |
+| [cli.md](cli.md)                           | Command line interface                     |
+| [opcodes.go](opcodes.go)                   | MOS6502 instruction definitions            |
+| [architecture.md](architecture.md)         | Core Go type and struct definitions        |
+| [state.md](state.md)                       | JSON state file format for save/load       |
+| [state-interface.md](state-interface.md)   | Go interface for state manipulation        |
+| [symbol-table.md](symbol-table.md)         | Symbol types, struct, and interface        |
+| [annotation-table.md](annotation-table.md) | Annotation struct and interface            |
+| [segments-table.md](segments-table.md)     | Segment types, struct, and interface       |
+| [disassembler.md](disassembler.md)         | Binary reading, parsing, and flow analysis |
+| [export.md](export.md)                     | Assembly output format specification       |
 
 ## References
 

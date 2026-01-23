@@ -74,28 +74,24 @@ Maps addresses to arrays of symbol definitions. Multiple symbols per address are
     {
       "name": "main",
       "type": "entry",
-      "source": "user",
-      "primary": true
+      "source": "user"
     },
     {
       "name": "L_0801",
       "type": "entry",
-      "source": "auto",
-      "primary": false
+      "source": "auto"
     }
   ],
   "0xD020": [
     {
       "name": "BORDER_COLOR",
       "type": "byte",
-      "source": "c64rom",
-      "primary": true
+      "source": "c64rom"
     },
     {
       "name": "VIC_BORDER",
       "type": "byte",
-      "source": "user",
-      "primary": false
+      "source": "user"
     }
   ]
 }
@@ -103,12 +99,11 @@ Maps addresses to arrays of symbol definitions. Multiple symbols per address are
 
 #### Symbol Definition
 
-| Field     | Type    | Required | Description                                         |
-|-----------|---------|----------|-----------------------------------------------------|
-| `name`    | string  | Yes      | Symbol name (valid identifier)                      |
-| `type`    | string  | Yes      | Symbol type (see below)                             |
-| `source`  | string  | Yes      | Origin of the symbol (see below)                    |
-| `primary` | boolean | No       | Primary symbol for display (default: first in list) |
+| Field    | Type   | Required | Description                      |
+|----------|--------|----------|----------------------------------|
+| `name`   | string | Yes      | Symbol name (valid identifier)   |
+| `type`   | string | Yes      | Symbol type (see below)          |
+| `source` | string | Yes      | Origin of the symbol (see below) |
 
 #### Symbol Types
 
@@ -226,14 +221,14 @@ Maps addresses to their references:
   "entryPoints": ["0x0801", "0x1000"],
   "symbols": {
     "0x0801": [
-      {"name": "start", "type": "entry", "source": "user", "primary": true}
+      {"name": "start", "type": "entry", "source": "user"}
     ],
     "0x1000": [
-      {"name": "game_loop", "type": "subroutine", "source": "user", "primary": true},
+      {"name": "game_loop", "type": "subroutine", "source": "user"},
       {"name": "SUB_1000", "type": "subroutine", "source": "auto"}
     ],
     "0xD020": [
-      {"name": "BORDER", "type": "byte", "source": "c64rom", "primary": true}
+      {"name": "BORDER", "type": "byte", "source": "c64rom"}
     ]
   },
   "annotations": {
