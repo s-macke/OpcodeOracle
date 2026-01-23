@@ -88,30 +88,6 @@ type SymbolTable interface {
 | `ByType(t SymbolType) map[uint16][]Symbol`     | Filter symbols by type                           |
 | `BySource(s SymbolSource) map[uint16][]Symbol` | Filter symbols by source                         |
 
-## XRefTable Interface
-
-Manages cross-reference data (which addresses reference which).
-
-```go
-type XRefTable interface {
-    To(addr uint16) []XRef
-    From(addr uint16) []XRef
-    Add(from, to uint16, refType XRefType)
-    Remove(from, to uint16)
-    All() []XRef
-}
-```
-[
-### XRefTable Methods]()
-
-| Method                                   | Description                     |
-|------------------------------------------|---------------------------------|
-| `To(addr uint16) []XRef`                 | Get all references to address   |
-| `From(addr uint16) []XRef`               | Get all references from address |
-| `Add(from, to uint16, refType XRefType)` | Add cross-reference             |
-| `Remove(from, to uint16)`                | Remove cross-reference          |
-| `All() []XRef`                           | Get all cross-references        |
-
 ## Constructor Functions
 
 ```go

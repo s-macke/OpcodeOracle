@@ -4,6 +4,36 @@ This document specifies the core Go type definitions used throughout OpcodeOracl
 
 See [state.md](state.md) for the JSON file format specification.
 
+## Program Flow
+
+```mermaid
+flowchart TB
+    CLI[CLI Interface]
+
+    subgraph new [new command]
+        BIN[Binary File]
+        LOADER[Binary Loader]
+        DISASM[Disassembly Engine]
+    end
+
+    STATE[State File .orc]
+
+    subgraph export [export command]
+        FORMATTER[Output Formatter]
+        MAIN[Main .asm File]
+        SEGMENTS[Segment Files]
+    end
+
+    CLI --> new
+    CLI --> export
+    BIN --> LOADER
+    LOADER --> DISASM
+    DISASM --> STATE
+    STATE --> FORMATTER
+    FORMATTER --> MAIN
+    FORMATTER --> SEGMENTS
+```
+
 ## Directory Structure
 
 ```
@@ -16,6 +46,7 @@ opcodeoracle/
 │   ├── symbols/            # Symbol table implementation
 │   ├── segments/           # Segment table implementation
 │   ├── annotations/        # Annotation table implementation
+│   ├── xrefs/              # Cross-reference table implementation
 │   ├── disasm/             # Disassembly engine
 │   ├── loader/             # Binary file loaders
 │   └── export/             # Assembly output formatter
@@ -25,117 +56,45 @@ opcodeoracle/
 └── README.md
 ```
 
-| Directory                | Purpose                                      |
-|--------------------------|----------------------------------------------|
-| `cmd/opcodeoracle/`      | Main entry point, CLI argument parsing       |
-| `internal/state/`        | State struct, JSON serialization, validation |
-| `internal/symbols/`      | Symbol types and SymbolTable interface       |
-| `internal/segments/`     | Segment types and SegmentTable interface     |
+| Directory                | Purpose                                        |
+|--------------------------|------------------------------------------------|
+| `cmd/opcodeoracle/`      | Main entry point, CLI argument parsing         |
+| `internal/state/`        | State struct, JSON serialization, validation   |
+| `internal/symbols/`      | Symbol types and SymbolTable interface         |
+| `internal/segments/`     | Segment types and SegmentTable interface       |
 | `internal/annotations/`  | Annotation types and AnnotationTable interface |
-| `internal/disasm/`       | Flow-following disassembler, opcode decoding |
-| `internal/loader/`       | Binary file reading, PRG format handling     |
-| `internal/export/`       | Assembly file generation, formatting         |
-| `spec/`                  | Project specifications (this document)       |
-| `testdata/`              | Test binaries and expected outputs           |
-
-## Type Definitions
-
-### SymbolType
-
-```go
-type SymbolType string
-
-const (
-    SymbolSubroutine SymbolType = "subroutine"
-    SymbolLabel      SymbolType = "label"
-    SymbolByte       SymbolType = "byte"
-    SymbolWord       SymbolType = "word"
-    SymbolConstant   SymbolType = "constant"
-    SymbolEntry      SymbolType = "entry"
-)
-```
-
-### SymbolSource
-
-```go
-type SymbolSource string
-
-const (
-    SourceUser   SymbolSource = "user"
-    SourceAuto   SymbolSource = "auto"
-    SourceC64ROM SymbolSource = "c64rom"
-    SourceImport SymbolSource = "import"
-)
-```
-
-### SegmentType
-
-```go
-type SegmentType string
-
-const (
-    SegmentCode     SegmentType = "code"
-    SegmentData     SegmentType = "data"
-    SegmentString   SegmentType = "string"
-    SegmentTable    SegmentType = "table"
-    SegmentGraphics SegmentType = "graphics"
-)
-```
-
-### XRefType
-
-```go
-type XRefType string
-
-const (
-    XRefCall   XRefType = "call"   // JSR target
-    XRefJump   XRefType = "jump"   // JMP target
-    XRefBranch XRefType = "branch" // Conditional branch target
-    XRefRead   XRefType = "read"   // Memory read
-    XRefWrite  XRefType = "write"  // Memory write
-)
-```
+| `internal/xrefs/`        | XRef types and XRefTable interface             |
+| `internal/disasm/`       | Flow-following disassembler, opcode decoding   |
+| `internal/loader/`       | Binary file reading, PRG format handling       |
+| `internal/export/`       | Assembly file generation, formatting           |
+| `spec/`                  | Project specifications (this document)         |
+| `testdata/`              | Test binaries and expected outputs             |
 
 ## Struct Definitions
 
-### Symbol
+### State
 
 ```go
-type Symbol struct {
-    Name   string
-    Type   SymbolType
-    Source SymbolSource
+type State struct {
+    Version     string
+    Metadata    Metadata
+    Binary      Binary
+    EntryPoints []uint16
+    Symbols     map[uint16][]Symbol
+    Annotations map[uint16][]Annotation
+    Segments    []Segment
 }
 ```
 
-### Annotation
-
-```go
-type Annotation struct {
-    Comment string
-    Author  string
-}
-```
-
-### Segment
-
-```go
-type Segment struct {
-    Start uint16
-    End   uint16
-    Type  SegmentType
-}
-```
-
-### XRef
-
-```go
-type XRef struct {
-    From uint16
-    To   uint16
-    Type XRefType
-}
-```
+| Field         | Type                       | Description                                    |
+|---------------|----------------------------|------------------------------------------------|
+| `Version`     | string                     | Schema version (semver format)                 |
+| `Metadata`    | Metadata                   | Project metadata                               |
+| `Binary`      | Binary                     | Binary data and load parameters                |
+| `EntryPoints` | []uint16                   | Entry point addresses                          |
+| `Symbols`     | map[uint16][]Symbol        | See [symbol-table.md](symbol-table.md)         |
+| `Annotations` | map[uint16][]Annotation    | See [annotation-table.md](annotation-table.md) |
+| `Segments`    | []Segment                  | See [segments-table.md](segments-table.md)     |
 
 ### Metadata
 

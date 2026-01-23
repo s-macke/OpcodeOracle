@@ -18,8 +18,7 @@ State files are JSON documents with the following structure:
   "entryPoints": [ ... ],
   "symbols": { ... },
   "annotations": { ... },
-  "regions": [ ... ],
-  "xrefs": { ... }
+  "segments": [ ... ]
 }
 ```
 
@@ -35,8 +34,7 @@ State files are JSON documents with the following structure:
 | `entryPoints` | array  | Yes       | List of entry point addresses           |
 | `symbols`     | object | No        | User-defined and auto-generated symbols |
 | `annotations` | object | No        | Comments and notes                      |
-| `regions`     | array  | No        | Memory region classifications           |
-| `xrefs`       | object | No        | Cross-reference data                    |
+| `segments`    | array  | No        | Memory region classifications           |
 
 ### Metadata Object
 
@@ -168,19 +166,6 @@ Defines memory region classifications:
 | `string`   | ASCII/PETSCII text      |
 | `table`    | Jump/data table         |
 | `graphics` | Sprite/bitmap data      |
-
-### Cross-References Object (Future)
-
-Maps addresses to their references:
-
-```json
-"xrefs": {
-  "0x1000": {
-    "from": ["0x0815", "0x0830"],
-    "type": "call"
-  }
-}
-```
 
 ## Example: Minimal State File
 
