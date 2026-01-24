@@ -33,7 +33,6 @@ Standalone components - can be implemented independently.
 | Annotation table     | Planned | [annotation-table.md](annotation-table.md) |
 | Region table         | Planned | [regions-table.md](regions-table.md)       |
 | Cross-reference table| Planned | [xref-table.md](xref-table.md)             |
-| Entry point table    | Planned | [entrypoint-table.md](entrypoint-table.md) |
 
 ### Phase 3: State Management
 
@@ -94,7 +93,6 @@ Assembly listing export with auto-generated headers.
 | [annotation-table.md](annotation-table.md) | Annotation struct and interface            |
 | [regions-table.md](regions-table.md)       | Region types, struct, and interface        |
 | [xref-table.md](xref-table.md)             | Cross-reference types, struct, and interface |
-| [entrypoint-table.md](entrypoint-table.md) | Entry point methods                        |
 | [disassembler.md](disassembler.md)         | Binary reading and memory mapping          |
 | [flow-analysis.md](flow-analysis.md)       | Flow analysis algorithm and state population |
 | [export.md](export.md)                     | Assembly output format specification       |

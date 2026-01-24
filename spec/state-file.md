@@ -117,7 +117,6 @@ Maps addresses to arrays of symbol definitions. Multiple symbols per address are
 | `label`     | Code label (target of JMP/branch)        |
 | `byte`      | Single byte data (1 byte)                |
 | `word`      | Word data (2 bytes, little-endian)       |
-| `constant`  | Named constant value                     |
 | `entry`     | Program entry point                      |
 
 #### Symbol Sources

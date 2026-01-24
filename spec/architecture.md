@@ -38,39 +38,40 @@ flowchart TB
 
 ```
 opcodeoracle/
-├── cmd/
-│   └── opcodeoracle/       # CLI entry point
-│       └── main.go
-├── internal/
-│   ├── state/              # State types and file operations
-│   ├── binary/             # Binary data and address translation
-│   ├── symbols/            # Symbol table implementation
-│   ├── regions/            # Region table implementation
-│   ├── annotations/        # Annotation table implementation
-│   ├── xrefs/              # Cross-reference table implementation
-│   ├── disasm/             # Disassembly engine
-│   ├── loader/             # Binary file loaders
-│   └── export/             # Assembly output formatter
-├── spec/                   # Specification documents
-├── testdata/               # Test binaries and fixtures
-├── go.mod
+├── src/                        # Go module root
+│   ├── go.mod
+│   ├── cmd/
+│   │   └── opcodeoracle/       # CLI entry point
+│   │       └── main.go
+│   └── internal/
+│       ├── state/              # State types and file operations
+│       ├── binary/             # Binary data and address translation
+│       ├── symbols/            # Symbol table implementation
+│       ├── regions/            # Region table implementation
+│       ├── annotations/        # Annotation table implementation
+│       ├── xrefs/              # Cross-reference table implementation
+│       ├── disasm/             # Disassembly engine
+│       ├── loader/             # Binary file loaders
+│       └── export/             # Assembly output formatter
+├── spec/                       # Specification documents
+├── testdata/                   # Test binaries and fixtures
 └── README.md
 ```
 
-| Directory                | Purpose                                        |
-|--------------------------|------------------------------------------------|
-| `cmd/opcodeoracle/`      | Main entry point, CLI argument parsing         |
-| `internal/state/`        | State struct, JSON serialization, validation   |
-| `internal/binary/`       | Binary struct and address translation          |
-| `internal/symbols/`      | Symbol types and SymbolTable interface         |
-| `internal/regions/`      | Region types and RegionTable interface         |
-| `internal/annotations/`  | Annotation types and AnnotationTable interface |
-| `internal/xrefs/`        | XRef types and XRefTable interface             |
-| `internal/disasm/`       | Flow-following disassembler, opcode decoding   |
-| `internal/loader/`       | Binary file reading, PRG format handling       |
-| `internal/export/`       | Assembly file generation, formatting           |
-| `spec/`                  | Project specifications (this document)         |
-| `testdata/`              | Test binaries and expected outputs             |
+| Directory                    | Purpose                                        |
+|------------------------------|------------------------------------------------|
+| `src/cmd/opcodeoracle/`      | Main entry point, CLI argument parsing         |
+| `src/internal/state/`        | State struct, JSON serialization, validation   |
+| `src/internal/binary/`       | Binary struct and address translation          |
+| `src/internal/symbols/`      | Symbol types and SymbolTable interface         |
+| `src/internal/regions/`      | Region types and RegionTable interface         |
+| `src/internal/annotations/`  | Annotation types and AnnotationTable interface |
+| `src/internal/xrefs/`        | XRef types and XRefTable interface             |
+| `src/internal/disasm/`       | Flow-following disassembler, opcode decoding   |
+| `src/internal/loader/`       | Binary file reading, PRG format handling       |
+| `src/internal/export/`       | Assembly file generation, formatting           |
+| `spec/`                      | Project specifications (this document)         |
+| `testdata/`                  | Test binaries and expected outputs             |
 
 ## Struct Definitions
 
@@ -111,13 +112,3 @@ type Metadata struct {
 }
 ```
 
-### Binary
-
-```go
-type Binary struct {
-    Data     []byte
-    Origin   uint16
-    Size     int
-    Checksum string
-}
-```
