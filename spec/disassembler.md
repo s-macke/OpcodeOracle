@@ -94,15 +94,20 @@ Code instructions are formatted as:
 - **Label**: Shown if a symbol exists at the instruction address; uses the symbol name (e.g., `SUB_XXXX:` for subroutines, `L_XXXX:` for labels). If no symbol exists but the address is a jump/branch target, an auto label `L_XXXX:` is shown.
 - **No address column**: The label contains the address information
 - **No hex bytes**: Not shown for code instructions (only in data sections)
-- **Comment**: Annotations from state file are appended as comments
-- **Multiple comments**: Additional annotations appear on new lines, aligned with the first comment
+- **Comment**: Inline annotations from state file are appended as comments
+- **Multiple comments**: Additional inline annotations appear on new lines, aligned with the first comment
+- **Headlines**: Headline annotations appear as block comments above the address, preceded by a blank line
 
 Example:
 ```
              LDA #$00          ; Initialize border
                                ; Set to black
              STA $D020
-L_0815:      JMP L_0815        ; Main loop
+
+; --------------------------------------------------------
+; Main loop - waits forever
+; --------------------------------------------------------
+L_0815:      JMP L_0815        ; Infinite loop
 ```
 
 ### Field Specifications

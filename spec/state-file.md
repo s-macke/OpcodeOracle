@@ -47,12 +47,18 @@ State files are JSON documents with the following structure:
 
 ### Binary Object
 
-| Field      | Type    | Required  | Description                            |
-|------------|---------|-----------|----------------------------------------|
-| `data`     | string  | Yes       | Base64-encoded binary data             |
-| `origin`   | string  | Yes       | Load address in hex (e.g., `"0x0801"`) |
-| `size`     | integer | Yes       | Size in bytes (for validation)         |
-| `checksum` | string  | No        | SHA256 hash of original binary         |
+| Field      | Type     | Required  | Description                            |
+|------------|----------|-----------|----------------------------------------|
+| `data`     | array    | Yes       | Binary data as array of byte values    |
+| `origin`   | string   | Yes       | Load address in hex (e.g., `"0x0801"`) |
+
+Example:
+```json
+"binary": {
+  "data": [169, 0, 141, 32, 208, 76, 21, 8],
+  "origin": "0x0801"
+}
+```
 
 ### Entry Points Array
 
@@ -130,14 +136,30 @@ Maps addresses to arrays of comments (multiple annotations per address supported
 ```json
 "annotations": {
   "0x0810": [
-    {"comment": "Initialize screen color", "author": "user"},
-    {"comment": "Set to black", "author": "user"}
+    {"type": "inline", "comment": "Initialize screen color", "author": "user"},
+    {"type": "inline", "comment": "Set to black", "author": "user"}
   ],
   "0x0815": [
-    {"comment": "Main loop", "author": "auto"}
+    {"type": "headline", "comment": "Main loop - runs every frame", "author": "user"},
+    {"type": "inline", "comment": "Infinite loop", "author": "auto"}
   ]
 }
 ```
+
+#### Annotation Definition
+
+| Field     | Type   | Required | Description                          |
+|-----------|--------|----------|--------------------------------------|
+| `type`    | string | Yes      | Display type: `inline` or `headline` |
+| `comment` | string | Yes      | The annotation text                  |
+| `author`  | string | Yes      | Who created the annotation           |
+
+#### Annotation Types
+
+| Type       | Description                                    |
+|------------|------------------------------------------------|
+| `inline`   | Displayed to the right of disassembly (default)|
+| `headline` | Displayed as block comment above the address   |
 
 ### Regions Array
 
@@ -174,9 +196,8 @@ Defines memory region classifications:
     "sourceFile": "game.prg"
   },
   "binary": {
-    "data": "qQCNINDMFQg=",
-    "origin": "0x0801",
-    "size": 9
+    "data": [169, 0, 141, 32, 208, 76, 21, 8],
+    "origin": "0x0801"
   },
   "entryPoints": ["0x0801"]
 }
@@ -194,10 +215,8 @@ Defines memory region classifications:
     "description": "Space shooter game analysis"
   },
   "binary": {
-    "data": "qQCNINDMFQg=",
-    "origin": "0x0801",
-    "size": 9,
-    "checksum": "a1b2c3d4..."
+    "data": [169, 0, 141, 32, 208, 76, 21, 8],
+    "origin": "0x0801"
   },
   "entryPoints": ["0x0801", "0x1000"],
   "symbols": {
@@ -214,10 +233,10 @@ Defines memory region classifications:
   },
   "annotations": {
     "0x0801": [
-      {"comment": "Program entry - initialization", "author": "user"}
+      {"type": "inline", "comment": "Program entry - initialization", "author": "user"}
     ],
     "0x1000": [
-      {"comment": "Main game loop", "author": "user"}
+      {"type": "headline", "comment": "Main game loop", "author": "user"}
     ]
   },
   "regions": [

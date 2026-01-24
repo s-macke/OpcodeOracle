@@ -2,9 +2,17 @@
 
 This document specifies the Go interface for interacting with OpcodeOracle state files.
 
-See [state-file.md](state-file.md) for the JSON file format specification.
-See [architecture.md](architecture.md) for type and struct definitions.
-See [entrypoint-table.md](entrypoint-table.md) for entry point methods.
+## Related Documents
+
+| Document                                   | Description                            |
+|--------------------------------------------|----------------------------------------|
+| [state-file.md](state-file.md)             | JSON file format specification         |
+| [binary.md](binary.md)                     | Binary struct and read methods         |
+| [symbol-table.md](symbol-table.md)         | Symbol types, struct, and interface    |
+| [annotation-table.md](annotation-table.md) | Annotation types and interface         |
+| [regions-table.md](regions-table.md)       | Region types, struct, and interface    |
+| [xref-table.md](xref-table.md)             | Cross-reference types and interface    |
+| [entrypoint-table.md](entrypoint-table.md) | Entry point methods                    |
 
 ## Overview
 
@@ -15,7 +23,7 @@ The state interface provides programmatic access to load, save, query, and modif
 The primary interface for working with state files.
 
 ```go
-type State interface {
+type State struct {
     // Persistence
     Load(path string) error
     Save(path string) error
@@ -24,60 +32,37 @@ type State interface {
     Metadata() Metadata
     SetDescription(desc string)
 
-    // Binary data
-    Binary() Binary
-    ReadByte(addr uint16) (byte, error)
-    ReadWord(addr uint16) (uint16, error)
+    // Binary data (accessed as field)
+    Binary Binary
 
-    // Sub-tables
-    Symbols() SymbolTable
-    Annotations() AnnotationTable
-    Regions() RegionTable
-    XRefs() XRefTable
+    // Tables (accessed as fields)
+    Symbols     SymbolTable
+    Annotations AnnotationTable
+    Regions     RegionTable
+    XRefs       XRefTable
+    EntryPoints EntryPointTable
 }
 ```
 
 ### State Methods
 
-| Method                                  | Description                                |
-|-----------------------------------------|--------------------------------------------|
-| `Load(path string) error`               | Load state from JSON file                  |
-| `Save(path string) error`               | Save state to JSON file                    |
-| `Metadata() Metadata`                   | Get project metadata                       |
-| `SetDescription(desc string)`           | Update project description                 |
-| `Binary() Binary`                       | Get binary data and parameters             |
-| `ReadByte(addr uint16) (byte, error)`   | Read byte at virtual address               |
-| `ReadWord(addr uint16) (uint16, error)` | Read little-endian word at virtual address |
-| `Symbols() SymbolTable`                 | Get symbol table interface                 |
-| `Annotations() AnnotationTable`         | Get annotation table interface             |
-| `Regions() RegionTable`                 | Get region table interface                 |
-| `XRefs() XRefTable`                     | Get cross-reference table interface        |
+| Method                       | Description                    |
+|------------------------------|--------------------------------|
+| `Load(path string) error`    | Load state from JSON file      |
+| `Save(path string) error`    | Save state to JSON file        |
+| `Metadata() Metadata`        | Get project metadata           |
+| `SetDescription(desc string)`| Update project description     |
 
-## SymbolTable Interface
+### State Fields
 
-Manages symbols (labels, subroutine names, data labels) at memory addresses.
-
-```go
-type SymbolTable interface {
-    At(addr uint16) []Symbol
-    Add(addr uint16, sym Symbol)
-    Remove(addr uint16, name string)
-    All() map[uint16][]Symbol
-    ByType(t SymbolType) map[uint16][]Symbol
-    BySource(s SymbolSource) map[uint16][]Symbol
-}
-```
-
-### SymbolTable Methods
-
-| Method                                         | Description                                      |
-|------------------------------------------------|--------------------------------------------------|
-| `At(addr uint16) []Symbol`                     | Get all symbols at address (empty slice if none) |
-| `Add(addr uint16, sym Symbol)`                 | Add symbol at address                            |
-| `Remove(addr uint16, name string)`             | Remove symbol by name at address                 |
-| `All() map[uint16][]Symbol`                    | Get all symbols as address map                   |
-| `ByType(t SymbolType) map[uint16][]Symbol`     | Filter symbols by type                           |
-| `BySource(s SymbolSource) map[uint16][]Symbol` | Filter symbols by source                         |
+| Field         | Type              | Description                    |
+|---------------|-------------------|--------------------------------|
+| `Binary`      | `Binary`          | Binary data with read methods  |
+| `Symbols`     | `SymbolTable`     | Symbol table (labels, names)   |
+| `Annotations` | `AnnotationTable` | Comments and notes             |
+| `Regions`     | `RegionTable`     | Code/data region boundaries    |
+| `XRefs`       | `XRefTable`       | Cross-references               |
+| `EntryPoints` | `EntryPointTable` | Code entry points              |
 
 ## Constructor Functions
 
@@ -102,10 +87,10 @@ if err != nil {
 
 // Create state
 state := NewState(data, 0x0801, "game.prg")
-state.AddEntryPoint(0x0810)
+state.EntryPoints.Add(0x0810)
 
 // Add auto-generated symbol
-state.Symbols().Add(0x0810, Symbol{
+state.Symbols.Add(0x0810, Symbol{
     Name:   "L_0810",
     Type:   SymbolLabel,
     Source: SourceAuto,
@@ -127,21 +112,14 @@ if err != nil {
 meta := state.Metadata()
 fmt.Printf("Source: %s\n", meta.SourceFile)
 
-// Iterate symbols
-for addr, symbols := range state.Symbols().All() {
-    for _, sym := range symbols {
-        fmt.Printf("$%04X: %s (%s)\n", addr, sym.Name, sym.Type)
-    }
-}
-
 // Check region type at address
-region := state.Regions().At(0x0900)
+region := state.Regions.At(0x0900)
 if region.Type == RegionData {
     fmt.Println("Address is in data section")
 }
 
 // Mark address range as code
-state.Regions().Set(0x0900, 0x09FF, RegionCode)
+state.Regions.Set(0x0900, 0x09FF, RegionCode)
 ```
 
 ### Adding User Annotations
@@ -150,14 +128,14 @@ state.Regions().Set(0x0900, 0x09FF, RegionCode)
 state, _ := LoadState("game.orc")
 
 // Add user symbol
-state.Symbols().Add(0x1000, Symbol{
+state.Symbols.Add(0x1000, Symbol{
     Name:   "main_loop",
     Type:   SymbolSubroutine,
     Source: SourceUser,
 })
 
 // Add comment
-state.Annotations().Add(0x1000, "Main game loop - runs every frame", "user")
+state.Annotations.Add(0x1000, AnnotationInline, "Main game loop - runs every frame", "user")
 
 // Save changes
 state.Save("game.orc")
@@ -165,11 +143,11 @@ state.Save("game.orc")
 
 ## Error Handling
 
-| Error Condition | Behavior |
-|-----------------|----------|
-| File not found (Load) | Return error |
-| Invalid JSON (Load) | Return error |
-| Version mismatch (Load) | Return error |
-| Write permission denied (Save) | Return error |
+| Error Condition                            | Behavior     |
+|--------------------------------------------|--------------|
+| File not found (Load)                      | Return error |
+| Invalid JSON (Load)                        | Return error |
+| Version mismatch (Load)                    | Return error |
+| Write permission denied (Save)             | Return error |
 | Address outside binary (ReadByte/ReadWord) | Return error |
-| Index out of range (Remove annotation) | Return error |
+| Index out of range (Remove annotation)     | Return error |

@@ -43,6 +43,7 @@ opcodeoracle/
 │       └── main.go
 ├── internal/
 │   ├── state/              # State types and file operations
+│   ├── binary/             # Binary data and address translation
 │   ├── symbols/            # Symbol table implementation
 │   ├── regions/            # Region table implementation
 │   ├── annotations/        # Annotation table implementation
@@ -60,6 +61,7 @@ opcodeoracle/
 |--------------------------|------------------------------------------------|
 | `cmd/opcodeoracle/`      | Main entry point, CLI argument parsing         |
 | `internal/state/`        | State struct, JSON serialization, validation   |
+| `internal/binary/`       | Binary struct and address translation          |
 | `internal/symbols/`      | Symbol types and SymbolTable interface         |
 | `internal/regions/`      | Region types and RegionTable interface         |
 | `internal/annotations/`  | Annotation types and AnnotationTable interface |

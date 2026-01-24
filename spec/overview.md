@@ -13,63 +13,72 @@ An agentic system for reverse engineering legacy computer code, focusing on MOS6
 
 ## Feature Roadmap
 
-### Phase 1: Foundation
+### Phase 1: Project Structure
 
-Core data structures and state management - must be implemented first.
+Directory layout and core type definitions.
 
-| Feature                    | Status  | Specification                              |
-|----------------------------|---------|--------------------------------------------|
-| Core type definitions      | Planned | [architecture.md](architecture.md)         |
-| State file format          | Planned | [state-file.md](state-file.md)                       |
-| Symbol table               | Planned | [symbol-table.md](symbol-table.md)         |
-| Annotation table           | Planned | [annotation-table.md](annotation-table.md) |
-| Region table               | Planned | [regions-table.md](regions-table.md)       |
-| Cross-reference table      | Planned | [xref-table.md](xref-table.md)             |
+| Feature              | Status  | Specification                      |
+|----------------------|---------|------------------------------------|
+| Directory structure  | Planned | [architecture.md](architecture.md) |
+| Core type definitions| Planned | [architecture.md](architecture.md) |
 
-### Phase 2: State Interface Implementation
+### Phase 2: Component Implementations
 
-| Feature         | Status  | Specification                            |
-|-----------------|---------|------------------------------------------|
-| State interface | Planned | [state-interface.md](state-interface.md) |
+Standalone components - can be implemented independently.
 
-### Phase 3: Binary Reading and Flow Analysis
+| Feature              | Status  | Specification                              |
+|----------------------|---------|--------------------------------------------|
+| Binary               | Planned | [binary.md](binary.md)                     |
+| Symbol table         | Planned | [symbol-table.md](symbol-table.md)         |
+| Annotation table     | Planned | [annotation-table.md](annotation-table.md) |
+| Region table         | Planned | [regions-table.md](regions-table.md)       |
+| Cross-reference table| Planned | [xref-table.md](xref-table.md)             |
+| Entry point table    | Planned | [entrypoint-table.md](entrypoint-table.md) |
 
-| Feature                    | Status  | Specification                          |
-|----------------------------|---------|----------------------------------------|
-| Binary file reading        | Planned | [disassembler.md](disassembler.md)     |
-| Flow-following disassembly | Planned | [flow-analysis.md](flow-analysis.md)   |
-| Populate state from binary | Planned | [flow-analysis.md](flow-analysis.md)   |
-| MOS6502 opcode definitions | Planned | [opcodes.go](opcodes.go)               |
+### Phase 3: State Management
 
-### Phase 4: Output Generation
+Persistence and unified state interface.
 
-Output assembly listing from state file. All output files include auto-generated headers.
+| Feature           | Status  | Specification                            |
+|-------------------|---------|------------------------------------------|
+| State file format | Planned | [state-file.md](state-file.md)           |
+| State interface   | Planned | [state-interface.md](state-interface.md) |
 
-| Feature                    | Status  | Specification              |
-|----------------------------|---------|----------------------------|
-| Auto-generated headers     | Planned | [export.md](export.md)     |
-| Main disassembly file      | Planned | [export.md](export.md)     |
-| Segment files              | Planned | [export.md](export.md)     |
-| Data section hex dump      | Planned | [export.md](export.md)     |
-| Symbol resolution          | Planned | [export.md](export.md)     |
+### Phase 4: Disassembly Engine
 
-### Phase 5: Enhanced Analysis
+MOS6502 decoding and flow analysis.
 
-| Feature                | Status  | Specification        |
-|------------------------|---------|----------------------|
-| C64 ROM symbols        | Planned | [state-file.md](state-file.md) |
-| C64 I/O register names | Planned | TBD                  |
-| Cross-reference tables | Planned | [state-file.md](state-file.md) |
-| Subroutine detection   | Planned | TBD                  |
+| Feature                    | Status  | Specification                        |
+|----------------------------|---------|--------------------------------------|
+| MOS6502 opcode definitions | Planned | [opcodes.go](opcodes.go)             |
+| Disassembler interface     | Planned | [disassembler.md](disassembler.md)   |
+| Flow-following disassembly | Planned | [flow-analysis.md](flow-analysis.md) |
 
-### Phase 6: Agentic Features
+### Phase 5: Output Generation
+
+Assembly listing export with auto-generated headers.
+
+| Feature             | Status  | Specification          |
+|---------------------|---------|------------------------|
+| Main disassembly    | Planned | [export.md](export.md) |
+| Segment files       | Planned | [export.md](export.md) |
+| CLI commands        | Planned | [cli.md](cli.md)       |
+
+### Phase 6: Enhanced Analysis
+
+| Feature                | Status  | Specification |
+|------------------------|---------|---------------|
+| C64 ROM symbols        | Planned | TBD           |
+| C64 I/O register names | Planned | TBD           |
+| Subroutine detection   | Planned | TBD           |
+
+### Phase 7: Agentic Features
 
 | Feature                     | Status  | Specification |
 |-----------------------------|---------|---------------|
 | AI-assisted code annotation | Planned | TBD           |
 | Pattern recognition         | Planned | TBD           |
 | Automatic variable naming   | Planned | TBD           |
-| Code structure analysis     | Planned | TBD           |
 
 ## Specification Documents
 

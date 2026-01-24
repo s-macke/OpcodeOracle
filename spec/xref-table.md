@@ -59,7 +59,6 @@ type XRefTable interface {
     From(addr uint16) []XRef
     Add(from, to uint16, refType XRefType)
     Remove(from, to uint16)
-    All() []XRef
 }
 ```
 
@@ -69,7 +68,6 @@ type XRefTable interface {
 | `From(addr uint16) []XRef`               | Get all references from address          |
 | `Add(from, to uint16, refType XRefType)` | Add cross-reference                      |
 | `Remove(from, to uint16)`                | Remove cross-reference                   |
-| `All() []XRef`                           | Get all cross-references                 |
 
 ## Cross-Reference Rules
 
