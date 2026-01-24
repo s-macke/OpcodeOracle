@@ -85,6 +85,14 @@ func (a *Analyzer) Analyze() error {
 		}
 	}
 
+	// Also seed from existing code regions
+	// This ensures previously-identified code is re-analyzed (e.g., for xref rebuilding)
+	for _, region := range a.state.Regions.Regions() {
+		if region.Type == regions.RegionCode {
+			a.enqueue(region.Start)
+		}
+	}
+
 	return a.run()
 }
 
