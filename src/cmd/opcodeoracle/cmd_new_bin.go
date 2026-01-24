@@ -1,0 +1,72 @@
+package main
+
+import (
+	"fmt"
+	"os"
+
+	"opcodeoracle/internal/state"
+	"opcodeoracle/internal/stateio"
+
+	"github.com/urfave/cli/v2"
+)
+
+func newBinCommand() *cli.Command {
+	return &cli.Command{
+		Name:      "bin",
+		Usage:     "Create project from raw binary",
+		ArgsUsage: "<binary-file>",
+		Flags: []cli.Flag{
+			&cli.StringFlag{Name: "skip", Aliases: []string{"s"}, Required: true, Usage: "bytes to skip at start"},
+			&cli.StringFlag{Name: "entry", Aliases: []string{"e"}, Required: true, Usage: "entry point address"},
+			&cli.StringFlag{Name: "origin", Aliases: []string{"o"}, Required: true, Usage: "load address"},
+		},
+		Action: func(c *cli.Context) error {
+			if c.NArg() != 1 {
+				return cli.Exit("error: requires <binary-file> argument", ExitInvalidArgs)
+			}
+			return cmdNewBin(c, c.Args().Get(0))
+		},
+	}
+}
+
+func cmdNewBin(c *cli.Context, binaryFile string) error {
+	skipNum, err := parseNumber(c.String("skip"))
+	if err != nil {
+		return cli.Exit("error: invalid skip value: "+err.Error(), ExitInvalidArgs)
+	}
+
+	entryNum, err := parseNumber(c.String("entry"))
+	if err != nil {
+		return cli.Exit("error: invalid entry value: "+err.Error(), ExitInvalidArgs)
+	}
+
+	originNum, err := parseNumber(c.String("origin"))
+	if err != nil {
+		return cli.Exit("error: invalid origin value: "+err.Error(), ExitInvalidArgs)
+	}
+
+	// Read file
+	fileData, err := os.ReadFile(binaryFile)
+	if err != nil {
+		return cli.Exit("error: reading file: "+err.Error(), ExitIOError)
+	}
+
+	// Validate skip doesn't exceed file length
+	if int(skipNum) > len(fileData) {
+		return cli.Exit("error: skip value exceeds file length", ExitInvalidArgs)
+	}
+
+	data := fileData[skipNum:]
+	origin := uint16(originNum)
+	entryPoints := []uint16{uint16(entryNum)}
+
+	s := state.NewState(data, origin, entryPoints, binaryFile)
+
+	outputFile := outputFilename(binaryFile)
+	if err := stateio.Save(s, outputFile); err != nil {
+		return cli.Exit("error: saving state: "+err.Error(), ExitIOError)
+	}
+
+	fmt.Printf("Created %s\n", outputFile)
+	return nil
+}

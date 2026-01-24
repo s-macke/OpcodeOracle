@@ -2,7 +2,6 @@ set -e
 
 (cd src && go build -o ../ ./cmd/opcodeoracle)
 
-./opcodeoracle new prg testdata/weltendaemmerung.bin --entry 2061
+./opcodeoracle new prg --entry 2061 testdata/weltendaemmerung.prg
 
-#0x0801
-#2016
+./opcodeoracle new sid testdata/Nippon.sid

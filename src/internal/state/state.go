@@ -13,7 +13,7 @@ import (
 const CurrentVersion = "1.0"
 
 // NewState creates a new state with the given binary data.
-func NewState(data []byte, origin uint16, sourceFile string) *State {
+func NewState(data []byte, origin uint16, entryPoints []uint16, sourceFile string) *State {
 	now := time.Now().UTC()
 
 	regTable := regions.NewTable()
@@ -32,7 +32,7 @@ func NewState(data []byte, origin uint16, sourceFile string) *State {
 			Data:   data,
 			Origin: origin,
 		},
-		EntryPoints: []uint16{origin},
+		EntryPoints: entryPoints,
 		Symbols:     symbols.NewTable(),
 		Annotations: annotations.NewTable(),
 		Regions:     regTable,

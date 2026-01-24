@@ -80,11 +80,15 @@ SID files contain complete header information:
 - No additional parameters required
 - Multiple entry points are extracted (init and play routines)
 
+### Output
+
+Creates a state file named `<binary-name>.opcodeoracle.json` (replacing the original extension).
+
 ### Behavior
 
 1. Reads the binary file
 2. Extracts or uses provided origin and entry points
-3. Creates state file `<binary-name>.orc`
+3. Creates state file `<binary-name>.opcodeoracle.json`
 4. Runs flow-following disassembly from entry point(s)
 5. Populates symbols, regions, and code/data classification (see [state-file.md](state-file.md))
 6. Saves state file
@@ -94,19 +98,19 @@ SID files contain complete header information:
 ```bash
 # Raw binary - all parameters required (hex with $)
 opcodeoracle new bin code.bin --skip 2 --origin $0800 --entry $0800
-# Creates: code.orc
+# Creates: code.opcodeoracle.json
 
 # C64 PRG file - hex with 0x prefix
 opcodeoracle new prg game.prg --entry 0x0810
-# Creates: game.orc
+# Creates: game.opcodeoracle.json
 
 # Decimal values also work
 opcodeoracle new prg game.prg --entry 2064
-# Creates: game.orc
+# Creates: game.opcodeoracle.json
 
 # SID file - everything from header
 opcodeoracle new sid music.sid
-# Creates: music.orc
+# Creates: music.opcodeoracle.json
 ```
 
 ---
@@ -123,14 +127,14 @@ opcodeoracle info <state-file>
 
 ### Parameters
 
-| Parameter  | Flag       | Required | Description              |
-|------------|------------|----------|--------------------------|
-| State file | positional | Yes      | Path to .orc state file  |
+| Parameter  | Flag       | Required | Description                          |
+|------------|------------|----------|--------------------------------------|
+| State file | positional | Yes      | Path to .opcodeoracle.json state file |
 
 ### Output
 
 ```
-Project:     game.orc
+Project:     game.opcodeoracle.json
 Source:      game.prg
 Origin:      $0801
 Entry:       $0810
@@ -148,7 +152,7 @@ Regions:
 ### Examples
 
 ```bash
-opcodeoracle info game.orc
+opcodeoracle info game.opcodeoracle.json
 ```
 
 ---
@@ -165,11 +169,11 @@ opcodeoracle export <state-file>
 
 ### Parameters
 
-| Parameter  | Flag       | Required | Description             |
-|------------|------------|----------|-------------------------|
-| State file | positional | Yes      | Path to .orc state file |
+| Parameter  | Flag       | Required | Description                          |
+|------------|------------|----------|--------------------------------------|
+| State file | positional | Yes      | Path to .opcodeoracle.json state file |
 
-Output filename is derived from state file: `game.orc` → `game.asm`
+Output filename is derived from state file: `game.opcodeoracle.json` → `game.asm`
 
 ### Behavior
 
@@ -183,7 +187,7 @@ Output filename is derived from state file: `game.orc` → `game.asm`
 ### Examples
 
 ```bash
-opcodeoracle export game.orc
+opcodeoracle export game.opcodeoracle.json
 # Creates: game.asm + segments/
 ```
 
