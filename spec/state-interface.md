@@ -132,7 +132,7 @@ if err != nil {
 fmt.Printf("Source: %s\n", s.Metadata.SourceFile)
 
 // Check region type at address
-region := s.Regions.At(0x0900)
+region := s.Regions.RegionAt(0x0900)
 if region.Type == regions.RegionData {
     fmt.Println("Address is in data section")
 }

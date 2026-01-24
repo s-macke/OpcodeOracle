@@ -17,9 +17,8 @@ func TestSaveLoad(t *testing.T) {
 	path := filepath.Join(tmpDir, "test.orc")
 
 	// Create state with data
-	original := state.NewState([]byte{0xA9, 0x00, 0x4C, 0x00, 0x08}, 0x0801, "test.prg")
+	original := state.NewState([]byte{0xA9, 0x00, 0x4C, 0x00, 0x08}, 0x0801, []uint16{0x0801, 0x1000}, "test.prg")
 	original.Metadata.Description = "Test description"
-	original.EntryPoints = []uint16{0x0801, 0x1000}
 
 	original.Symbols.Add(0x0801, symbols.Symbol{
 		Name:   "start",
@@ -86,7 +85,7 @@ func TestSaveLoad(t *testing.T) {
 	if err := loaded.Regions.Validate(); err != nil {
 		t.Errorf("Regions.Validate() = %v, want nil", err)
 	}
-	reg := loaded.Regions.At(0x0850)
+	reg := loaded.Regions.RegionAt(0x0850)
 	if reg == nil || reg.Type != regions.RegionCode {
 		t.Errorf("Region at 0x0850 = %v, want code region", reg)
 	}
@@ -132,7 +131,7 @@ func TestLoadMinimal(t *testing.T) {
 	if err := s.Regions.Validate(); err != nil {
 		t.Errorf("Regions.Validate() = %v, want nil", err)
 	}
-	reg := s.Regions.At(0x5000)
+	reg := s.Regions.RegionAt(0x5000)
 	if reg == nil || reg.Type != regions.RegionData {
 		t.Errorf("Region at 0x5000 = %v, want data region", reg)
 	}
@@ -208,11 +207,11 @@ func TestLoadFull(t *testing.T) {
 	}
 
 	// Check regions
-	reg := s.Regions.At(0x0850)
+	reg := s.Regions.RegionAt(0x0850)
 	if reg == nil || reg.Type != regions.RegionCode {
 		t.Errorf("Region at 0x0850 = %v, want code region", reg)
 	}
-	reg = s.Regions.At(0x0500)
+	reg = s.Regions.RegionAt(0x0500)
 	if reg == nil || reg.Type != regions.RegionData {
 		t.Errorf("Region at 0x0500 = %v, want data region", reg)
 	}
@@ -307,7 +306,7 @@ func TestSaveUpdatesModified(t *testing.T) {
 	path := filepath.Join(tmpDir, "test.orc")
 
 	// Create state with a Modified time in the past
-	s := state.NewState([]byte{0xA9}, 0x0801, "test.prg")
+	s := state.NewState([]byte{0xA9}, 0x0801, []uint16{0x0801}, "test.prg")
 	originalModified := time.Date(2020, 1, 1, 0, 0, 0, 0, time.UTC)
 	s.Metadata.Modified = originalModified
 

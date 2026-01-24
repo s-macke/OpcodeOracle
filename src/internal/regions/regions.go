@@ -28,14 +28,24 @@ func NewTable() *Table {
 	}
 }
 
-// At returns the region containing the given address.
-func (t *Table) At(addr uint16) *Region {
+// RegionAt returns the region containing the given address.
+func (t *Table) RegionAt(addr uint16) *Region {
 	for i := range t.regions {
 		if addr >= t.regions[i].Start && addr <= t.regions[i].End {
 			return &t.regions[i]
 		}
 	}
 	return nil
+}
+
+// At returns the region type at the given address.
+// Returns empty string if no region contains the address.
+func (t *Table) At(addr uint16) RegionType {
+	r := t.RegionAt(addr)
+	if r == nil { // If everything works, that should never happen
+		return RegionData
+	}
+	return r.Type
 }
 
 // Set sets the region type for the given address range.

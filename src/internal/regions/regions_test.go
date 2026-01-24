@@ -7,9 +7,9 @@ import (
 func TestRegionTableEmpty(t *testing.T) {
 	table := NewTable()
 
-	r := table.At(0x0800)
+	r := table.RegionAt(0x0800)
 	if r != nil {
-		t.Errorf("At(0x0800) on empty table returned %v, want nil", r)
+		t.Errorf("RegionAt(0x0800) on empty table returned %v, want nil", r)
 	}
 }
 
@@ -19,12 +19,12 @@ func TestRegionTableSet(t *testing.T) {
 	// Must cover full range 0x0000-0xFFFF
 	table.Set(0x0000, 0xFFFF, RegionData)
 
-	r := table.At(0x0800)
+	r := table.RegionAt(0x0800)
 	if r == nil {
-		t.Fatal("At(0x0800) returned nil")
+		t.Fatal("RegionAt(0x0800) returned nil")
 	}
 	if r.Type != RegionData {
-		t.Errorf("At(0x0800).Type = %v, want %v", r.Type, RegionData)
+		t.Errorf("RegionAt(0x0800).Type = %v, want %v", r.Type, RegionData)
 	}
 	if r.Start != 0x0000 || r.End != 0xFFFF {
 		t.Errorf("Region = %04X-%04X, want 0000-FFFF", r.Start, r.End)
@@ -41,36 +41,36 @@ func TestRegionTableSplit(t *testing.T) {
 	table.Set(0x0900, 0x09FF, RegionCode)
 
 	// Check before code region
-	r := table.At(0x0850)
+	r := table.RegionAt(0x0850)
 	if r == nil {
-		t.Fatal("At(0x0850) returned nil")
+		t.Fatal("RegionAt(0x0850) returned nil")
 	}
 	if r.Type != RegionData {
-		t.Errorf("At(0x0850).Type = %v, want %v", r.Type, RegionData)
+		t.Errorf("RegionAt(0x0850).Type = %v, want %v", r.Type, RegionData)
 	}
 	if r.Start != 0x0000 || r.End != 0x08FF {
 		t.Errorf("Data region before = %04X-%04X, want 0000-08FF", r.Start, r.End)
 	}
 
 	// Check code region
-	r = table.At(0x0950)
+	r = table.RegionAt(0x0950)
 	if r == nil {
-		t.Fatal("At(0x0950) returned nil")
+		t.Fatal("RegionAt(0x0950) returned nil")
 	}
 	if r.Type != RegionCode {
-		t.Errorf("At(0x0950).Type = %v, want %v", r.Type, RegionCode)
+		t.Errorf("RegionAt(0x0950).Type = %v, want %v", r.Type, RegionCode)
 	}
 	if r.Start != 0x0900 || r.End != 0x09FF {
 		t.Errorf("Code region = %04X-%04X, want 0900-09FF", r.Start, r.End)
 	}
 
 	// Check after code region
-	r = table.At(0x0A50)
+	r = table.RegionAt(0x0A50)
 	if r == nil {
-		t.Fatal("At(0x0A50) returned nil")
+		t.Fatal("RegionAt(0x0A50) returned nil")
 	}
 	if r.Type != RegionData {
-		t.Errorf("At(0x0A50).Type = %v, want %v", r.Type, RegionData)
+		t.Errorf("RegionAt(0x0A50).Type = %v, want %v", r.Type, RegionData)
 	}
 	if r.Start != 0x0A00 || r.End != 0xFFFF {
 		t.Errorf("Data region after = %04X-%04X, want 0A00-FFFF", r.Start, r.End)
@@ -90,11 +90,11 @@ func TestRegionTableAtOutOfRange(t *testing.T) {
 		{Start: 0x0800, End: 0x08FF, Type: RegionData},
 	})
 
-	if r := table.At(0x07FF); r != nil {
-		t.Errorf("At(0x07FF) = %v, want nil", r)
+	if r := table.RegionAt(0x07FF); r != nil {
+		t.Errorf("RegionAt(0x07FF) = %v, want nil", r)
 	}
-	if r := table.At(0x0900); r != nil {
-		t.Errorf("At(0x0900) = %v, want nil", r)
+	if r := table.RegionAt(0x0900); r != nil {
+		t.Errorf("RegionAt(0x0900) = %v, want nil", r)
 	}
 }
 
@@ -133,12 +133,12 @@ func TestRegionTableSetRegions(t *testing.T) {
 
 	table.SetRegions(regions)
 
-	r := table.At(0x0950)
+	r := table.RegionAt(0x0950)
 	if r == nil {
-		t.Fatal("At(0x0950) returned nil")
+		t.Fatal("RegionAt(0x0950) returned nil")
 	}
 	if r.Type != RegionCode {
-		t.Errorf("At(0x0950).Type = %v, want %v", r.Type, RegionCode)
+		t.Errorf("RegionAt(0x0950).Type = %v, want %v", r.Type, RegionCode)
 	}
 }
 

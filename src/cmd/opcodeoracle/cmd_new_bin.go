@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 
+	"opcodeoracle/internal/analysis"
 	"opcodeoracle/internal/state"
 	"opcodeoracle/internal/stateio"
 
@@ -61,6 +62,13 @@ func cmdNewBin(c *cli.Context, binaryFile string) error {
 	entryPoints := []uint16{uint16(entryNum)}
 
 	s := state.NewState(data, origin, entryPoints, binaryFile)
+
+	// Run flow analysis
+	fmt.Printf("Analyzing from %d entry point(s)...\n", len(entryPoints))
+	analyzer := analysis.NewAnalyzer(s, analysis.UpdateAll)
+	if err := analyzer.Analyze(); err != nil {
+		return cli.Exit("error: analyzing: "+err.Error(), ExitAnalysisError)
+	}
 
 	outputFile := outputFilename(binaryFile)
 	if err := stateio.Save(s, outputFile); err != nil {

@@ -9,7 +9,8 @@ func TestNewState(t *testing.T) {
 	origin := uint16(0x0801)
 	sourceFile := "test.prg"
 
-	s := NewState(data, origin, sourceFile)
+	entryPoints := []uint16{origin}
+	s := NewState(data, origin, entryPoints, sourceFile)
 
 	if s.Version != CurrentVersion {
 		t.Errorf("Version = %q, want %q", s.Version, CurrentVersion)
@@ -23,8 +24,8 @@ func TestNewState(t *testing.T) {
 	if s.Binary.Origin != origin {
 		t.Errorf("Binary.Origin = %04X, want %04X", s.Binary.Origin, origin)
 	}
-	if len(s.EntryPoints) != 1 || s.EntryPoints[0] != origin {
-		t.Errorf("EntryPoints = %v, want [%04X]", s.EntryPoints, origin)
+	if len(s.EntryPoints) != 1 || s.EntryPoints[0] != entryPoints[0] {
+		t.Errorf("EntryPoints = %v, want %v", s.EntryPoints, entryPoints)
 	}
 	if s.Symbols == nil {
 		t.Error("Symbols is nil")

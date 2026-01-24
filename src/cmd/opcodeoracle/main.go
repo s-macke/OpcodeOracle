@@ -9,12 +9,13 @@ import (
 
 // Exit codes
 const (
-	ExitSuccess      = 0
-	ExitInvalidArgs  = 1
-	ExitFileNotFound = 2
-	ExitIOError      = 3
-	ExitInvalidState = 4
-	ExitDisasmError  = 5
+	ExitSuccess       = 0
+	ExitInvalidArgs   = 1
+	ExitFileNotFound  = 2
+	ExitIOError       = 3
+	ExitInvalidState  = 4
+	ExitDisasmError   = 5
+	ExitAnalysisError = 6
 )
 
 // Version information
