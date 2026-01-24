@@ -32,15 +32,14 @@ Core data structures and state management - must be implemented first.
 |-----------------|---------|------------------------------------------|
 | State interface | Planned | [state-interface.md](state-interface.md) |
 
-### Phase 3: Binary Reading & Disassembly
+### Phase 3: Binary Reading and Flow Analysis
 
-| Feature                    | Status  | Specification                      |
-|----------------------------|---------|------------------------------------|
-| Binary file reading        | Planned | [disassembler.md](disassembler.md) |
-| Memory mapping             | Planned | [disassembler.md](disassembler.md) |
-| Flow-following disassembly | Planned | [disassembler.md](disassembler.md) |
-| Populate state from binary | Planned | [disassembler.md](disassembler.md) |
-| MOS6502 opcode definitions | Planned | [opcodes.go](opcodes.go)           |
+| Feature                    | Status  | Specification                          |
+|----------------------------|---------|----------------------------------------|
+| Binary file reading        | Planned | [disassembler.md](disassembler.md)     |
+| Flow-following disassembly | Planned | [flow-analysis.md](flow-analysis.md)   |
+| Populate state from binary | Planned | [flow-analysis.md](flow-analysis.md)   |
+| MOS6502 opcode definitions | Planned | [opcodes.go](opcodes.go)               |
 
 ### Phase 4: Output Generation
 
@@ -86,7 +85,9 @@ Output assembly listing from state file. All output files include auto-generated
 | [annotation-table.md](annotation-table.md) | Annotation struct and interface            |
 | [regions-table.md](regions-table.md)       | Region types, struct, and interface        |
 | [xref-table.md](xref-table.md)             | Cross-reference types, struct, and interface |
-| [disassembler.md](disassembler.md)         | Binary reading, parsing, and flow analysis |
+| [entrypoint-table.md](entrypoint-table.md) | Entry point methods                        |
+| [disassembler.md](disassembler.md)         | Binary reading and memory mapping          |
+| [flow-analysis.md](flow-analysis.md)       | Flow analysis algorithm and state population |
 | [export.md](export.md)                     | Assembly output format specification       |
 
 ## References

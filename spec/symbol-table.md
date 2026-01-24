@@ -21,7 +21,6 @@ const (
     SymbolLabel      SymbolType = "label"
     SymbolByte       SymbolType = "byte"
     SymbolWord       SymbolType = "word"
-    SymbolConstant   SymbolType = "constant"
     SymbolEntry      SymbolType = "entry"
 )
 ```
@@ -32,7 +31,6 @@ const (
 | `label`      | Code label (target of JMP/branch)      |
 | `byte`       | Single byte data (1 byte)              |
 | `word`       | Word data (2 bytes, little-endian)     |
-| `constant`   | Named constant value                   |
 | `entry`      | Program entry point                    |
 
 ### SymbolSource
@@ -80,9 +78,6 @@ type SymbolTable interface {
     At(addr uint16) []Symbol
     Add(addr uint16, sym Symbol)
     Remove(addr uint16, name string)
-    All() map[uint16][]Symbol
-    ByType(t SymbolType) map[uint16][]Symbol
-    BySource(s SymbolSource) map[uint16][]Symbol
 }
 ```
 
@@ -91,9 +86,6 @@ type SymbolTable interface {
 | `At(addr uint16) []Symbol`                     | Get all symbols at address (empty slice if none) |
 | `Add(addr uint16, sym Symbol)`                 | Add symbol at address                            |
 | `Remove(addr uint16, name string)`             | Remove symbol by name at address                 |
-| `All() map[uint16][]Symbol`                    | Get all symbols as address map                   |
-| `ByType(t SymbolType) map[uint16][]Symbol`     | Filter symbols by type                           |
-| `BySource(s SymbolSource) map[uint16][]Symbol` | Filter symbols by source                         |
 
 ## Symbol Naming Rules
 

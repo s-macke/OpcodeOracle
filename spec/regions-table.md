@@ -7,7 +7,7 @@ See [state-interface.md](state-interface.md) for the full state interface.
 
 ## Overview
 
-Regions define contiguous memory areas with a specific type classification (code, data, string, etc.). They help the disassembler and exporter understand how to process different parts of the binary.
+Regions define contiguous memory areas with a specific type classification (code or data). They help the disassembler and exporter understand how to process different parts of the binary.
 
 ## Type Definition
 
@@ -92,17 +92,17 @@ $0900-$09FF: code
 $0A00-$0FFF: data
 ```
 
-After `Set($0900, $09FF, string)` - replaces code region entirely:
+After `Set($0900, $09FF, data)` - replaces code region entirely:
 ```
 $0800-$08FF: data
-$0900-$09FF: string
+$0900-$09FF: data
 $0A00-$0FFF: data
 ```
 
-After `Set($0850, $0A50, table)` - splits first, replaces middle, splits last:
+After `Set($0850, $0A50, code)` - splits first, replaces middle, splits last:
 ```
 $0800-$084F: data
-$0850-$0A50: table
+$0850-$0A50: code
 $0A51-$0FFF: data
 ```
 

@@ -4,6 +4,7 @@ This document specifies the Go interface for interacting with OpcodeOracle state
 
 See [state-file.md](state-file.md) for the JSON file format specification.
 See [architecture.md](architecture.md) for type and struct definitions.
+See [entrypoint-table.md](entrypoint-table.md) for entry point methods.
 
 ## Overview
 
@@ -28,12 +29,6 @@ type State interface {
     ReadByte(addr uint16) (byte, error)
     ReadWord(addr uint16) (uint16, error)
 
-    // Entry points
-    EntryPoints() []uint16
-    AddEntryPoint(addr uint16)
-    RemoveEntryPoint(addr uint16)
-    HasEntryPoint(addr uint16) bool
-
     // Sub-tables
     Symbols() SymbolTable
     Annotations() AnnotationTable
@@ -53,10 +48,6 @@ type State interface {
 | `Binary() Binary`                       | Get binary data and parameters             |
 | `ReadByte(addr uint16) (byte, error)`   | Read byte at virtual address               |
 | `ReadWord(addr uint16) (uint16, error)` | Read little-endian word at virtual address |
-| `EntryPoints() []uint16`                | Get list of entry point addresses          |
-| `AddEntryPoint(addr uint16)`            | Add entry point (no-op if exists)          |
-| `RemoveEntryPoint(addr uint16)`         | Remove entry point (no-op if not exists)   |
-| `HasEntryPoint(addr uint16) bool`       | Check if address is an entry point         |
 | `Symbols() SymbolTable`                 | Get symbol table interface                 |
 | `Annotations() AnnotationTable`         | Get annotation table interface             |
 | `Regions() RegionTable`                 | Get region table interface                 |

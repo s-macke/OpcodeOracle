@@ -189,54 +189,51 @@ func (o OpcodeDef) FormatOperand(operand []byte) string {
 		return " A"
 	case AddrImmediate:
 		if len(operand) >= 1 {
-			return fmt.Sprintf(" #%#x", operand[0])
+			return fmt.Sprintf(" #$%02X", operand[0])
 		}
 	case AddrZeroPage:
 		if len(operand) >= 1 {
-			return fmt.Sprintf(" %#x", operand[0])
+			return fmt.Sprintf(" $%02X", operand[0])
 		}
 	case AddrZeroPageX:
 		if len(operand) >= 1 {
-			return fmt.Sprintf(" %#x,X", operand[0])
+			return fmt.Sprintf(" $%02X,X", operand[0])
 		}
 	case AddrZeroPageY:
 		if len(operand) >= 1 {
-			return fmt.Sprintf(" %#x,Y", operand[0])
+			return fmt.Sprintf(" $%02X,Y", operand[0])
 		}
 	case AddrAbsolute:
 		if len(operand) >= 2 {
-			addr := int(operand[0]) + (int(operand[1]) << 8)
-			return fmt.Sprintf(" %#x", addr)
+			addr := uint16(operand[0]) | (uint16(operand[1]) << 8)
+			return fmt.Sprintf(" $%04X", addr)
 		}
 	case AddrAbsoluteX:
 		if len(operand) >= 2 {
-			addr := int(operand[0]) + (int(operand[1]) << 8)
-			return fmt.Sprintf(" %#x,X", addr)
+			addr := uint16(operand[0]) | (uint16(operand[1]) << 8)
+			return fmt.Sprintf(" $%04X,X", addr)
 		}
 	case AddrAbsoluteY:
 		if len(operand) >= 2 {
-			addr := int(operand[0]) + (int(operand[1]) << 8)
-			return fmt.Sprintf(" %#x,Y", addr)
+			addr := uint16(operand[0]) | (uint16(operand[1]) << 8)
+			return fmt.Sprintf(" $%04X,Y", addr)
 		}
 	case AddrIndirect:
 		if len(operand) >= 2 {
-			addr := int(operand[0]) + (int(operand[1]) << 8)
-			return fmt.Sprintf(" (%#x)", addr)
+			addr := uint16(operand[0]) | (uint16(operand[1]) << 8)
+			return fmt.Sprintf(" ($%04X)", addr)
 		}
 	case AddrIndexedIndirect:
 		if len(operand) >= 1 {
-			return fmt.Sprintf(" (%#x,X)", operand[0])
+			return fmt.Sprintf(" ($%02X,X)", operand[0])
 		}
 	case AddrIndirectIndexed:
 		if len(operand) >= 1 {
-			return fmt.Sprintf(" (%#x),Y", operand[0])
+			return fmt.Sprintf(" ($%02X),Y", operand[0])
 		}
 	case AddrRelative:
 		if len(operand) >= 1 {
-			if operand[0] > 0x7f {
-				return fmt.Sprintf(" -%#x", 256-int(operand[0]))
-			}
-			return fmt.Sprintf(" +%#x", operand[0])
+			return fmt.Sprintf(" $%02X", operand[0])
 		}
 	}
 	return ""
