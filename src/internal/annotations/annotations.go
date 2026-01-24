@@ -64,3 +64,8 @@ func (t *Table) Remove(addr uint16, index int) error {
 func (t *Table) Clear(addr uint16) {
 	delete(t.annotations, addr)
 }
+
+// All returns all annotations as a map from address to annotation slice.
+func (t *Table) All() map[uint16][]Annotation {
+	return t.annotations
+}

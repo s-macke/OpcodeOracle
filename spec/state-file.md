@@ -162,22 +162,29 @@ Maps addresses to arrays of comments (multiple annotations per address supported
 
 ### Regions Array
 
-Defines memory region classifications:
+Defines memory region classifications. Regions must cover the entire 64KB address space (0x0000-0xFFFF) without gaps or overlaps. Adjacent regions of the same type should be merged.
 
 ```json
 "regions": [
   {
+    "start": "0x0000",
+    "end": "0x0800",
+    "type": "data"
+  },
+  {
     "start": "0x0801",
-    "end": "0x0900",
+    "end": "0x0FFF",
     "type": "code"
   },
   {
-    "start": "0x0900",
-    "end": "0x0A00",
+    "start": "0x1000",
+    "end": "0xFFFF",
     "type": "data"
   }
 ]
 ```
+
+**Note:** If regions are omitted or empty, the loader will default to a single data region covering 0x0000-0xFFFF.
 
 | Type       | Description             |
 |------------|-------------------------|
@@ -239,8 +246,9 @@ Defines memory region classifications:
     ]
   },
   "regions": [
-    {"start": "0x0801", "end": "0x0FFF", "type": "code"},
-    {"start": "0x1800", "end": "0x1900", "type": "data"}
+    {"start": "0x0000", "end": "0x0800", "type": "data"},
+    {"start": "0x0801", "end": "0x17FF", "type": "code"},
+    {"start": "0x1800", "end": "0xFFFF", "type": "data"}
   ]
 }
 ```

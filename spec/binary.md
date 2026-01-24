@@ -77,10 +77,10 @@ Entry points are known code execution starting addresses in the binary. They ser
 ## Usage Example
 
 ```go
-state, _ := LoadState("game.orc")
+s, _ := stateio.Load("game.orc")
 
 // Read a byte
-b, err := state.Binary.ReadByte(0x0810)
+b, err := s.Binary.ReadByte(0x0810)
 if err != nil {
     return err
 }

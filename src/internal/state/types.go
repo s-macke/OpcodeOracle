@@ -7,15 +7,18 @@ import (
 	"opcodeoracle/internal/binary"
 	"opcodeoracle/internal/regions"
 	"opcodeoracle/internal/symbols"
+	"opcodeoracle/internal/xrefs"
 )
 
 type State struct {
 	Version     string
 	Metadata    Metadata
 	Binary      binary.Binary
-	Symbols     map[uint16][]symbols.Symbol
-	Annotations map[uint16][]annotations.Annotation
-	Regions     []regions.Region
+	EntryPoints []uint16
+	Symbols     *symbols.Table
+	Annotations *annotations.Table
+	Regions     *regions.Table
+	XRefs       *xrefs.Table // Not persisted, computed during disassembly
 }
 
 type Metadata struct {

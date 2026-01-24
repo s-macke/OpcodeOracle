@@ -66,3 +66,8 @@ func (t *Table) Remove(addr uint16, name string) {
 		}
 	}
 }
+
+// All returns all symbols as a map from address to symbol slice.
+func (t *Table) All() map[uint16][]Symbol {
+	return t.symbols
+}

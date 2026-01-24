@@ -159,8 +159,8 @@ $0909    .BYTE $00,$00,$00,$00
 ## Usage Example
 
 ```go
-state, _ := LoadState("game.orc")
-disasm := NewDisassembler(state)
+s, _ := stateio.Load("game.orc")
+disasm := NewDisassembler(s)
 
 // Disassemble a range
 output, err := disasm.Disassemble(0x0810, 0x0900)

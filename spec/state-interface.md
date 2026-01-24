@@ -18,60 +18,69 @@ This document specifies the Go interface for interacting with OpcodeOracle state
 
 The state interface provides programmatic access to load, save, query, and modify reverse engineering session data. All CLI commands (`new`, `info`, `export`) use this interface to interact with state files.
 
-## State Interface
+## Package Structure
 
-The primary interface for working with state files.
+State management is split across two packages:
+
+| Package          | Purpose                                        |
+|------------------|------------------------------------------------|
+| `internal/state` | State and Metadata types, `NewState()` constructor |
+| `internal/stateio` | File I/O: `Load()`, `Save()`, JSON serialization |
+
+## State Struct
+
+The primary struct for working with state data (defined in `internal/state`).
 
 ```go
 type State struct {
-    // Persistence
-    Load(path string) error
-    Save(path string) error
-
-    // Metadata
-    Metadata() Metadata
-    SetDescription(desc string)
-
-    // Binary data (accessed as field)
-    Binary Binary
-
-    // Tables (accessed as fields)
-    Symbols     SymbolTable
-    Annotations AnnotationTable
-    Regions     RegionTable
-    XRefs       XRefTable
-    EntryPoints EntryPointTable
+    Version     string
+    Metadata    Metadata
+    Binary      Binary
+    EntryPoints []uint16
+    Symbols     *SymbolTable
+    Annotations *AnnotationTable
+    Regions     *RegionTable
+    XRefs       *XRefTable
 }
 ```
 
-### State Methods
-
-| Method                       | Description                    |
-|------------------------------|--------------------------------|
-| `Load(path string) error`    | Load state from JSON file      |
-| `Save(path string) error`    | Save state to JSON file        |
-| `Metadata() Metadata`        | Get project metadata           |
-| `SetDescription(desc string)`| Update project description     |
-
 ### State Fields
 
-| Field         | Type              | Description                    |
-|---------------|-------------------|--------------------------------|
-| `Binary`      | `Binary`          | Binary data with read methods  |
-| `Symbols`     | `SymbolTable`     | Symbol table (labels, names)   |
-| `Annotations` | `AnnotationTable` | Comments and notes             |
-| `Regions`     | `RegionTable`     | Code/data region boundaries    |
-| `XRefs`       | `XRefTable`       | Cross-references               |
-| `EntryPoints` | `EntryPointTable` | Code entry points              |
+| Field         | Type               | Description                    |
+|---------------|--------------------|--------------------------------|
+| `Version`     | `string`           | Schema version (e.g., "1.0")   |
+| `Metadata`    | `Metadata`         | Project metadata               |
+| `Binary`      | `Binary`           | Binary data with read methods  |
+| `EntryPoints` | `[]uint16`         | Code entry point addresses     |
+| `Symbols`     | `*SymbolTable`     | Symbol table (labels, names)   |
+| `Annotations` | `*AnnotationTable` | Comments and notes             |
+| `Regions`     | `*RegionTable`     | Code/data region boundaries    |
+| `XRefs`       | `*XRefTable`       | Cross-references (not persisted) |
 
-## Constructor Functions
+## Package Functions
+
+### state package
 
 ```go
 // NewState creates an empty state with the given binary data
-func NewState(data []byte, origin uint16, sourceFile string) State
+func NewState(data []byte, origin uint16, sourceFile string) *State
 
-// LoadState loads a state from a JSON file
-func LoadState(path string) (State, error)
+// CurrentVersion is the current schema version
+const CurrentVersion = "1.0"
+```
+
+### stateio package
+
+```go
+// Load reads a state from a JSON file
+func Load(path string) (*state.State, error)
+
+// Save writes the state to a JSON file
+func Save(s *state.State, path string) error
+
+// Errors
+var ErrUnsupportedVersion = errors.New("unsupported version")
+var ErrMissingRequired    = errors.New("missing required field")
 ```
 
 ## Usage Examples
@@ -79,6 +88,12 @@ func LoadState(path string) (State, error)
 ### Creating a New State
 
 ```go
+import (
+    "opcodeoracle/internal/state"
+    "opcodeoracle/internal/stateio"
+    "opcodeoracle/internal/symbols"
+)
+
 // Read binary file
 data, err := os.ReadFile("game.prg")
 if err != nil {
@@ -86,59 +101,69 @@ if err != nil {
 }
 
 // Create state
-state := NewState(data, 0x0801, "game.prg")
-state.EntryPoints.Add(0x0810)
+s := state.NewState(data, 0x0801, "game.prg")
+s.EntryPoints = append(s.EntryPoints, 0x0810)
 
 // Add auto-generated symbol
-state.Symbols.Add(0x0810, Symbol{
+s.Symbols.Add(0x0810, symbols.Symbol{
     Name:   "L_0810",
-    Type:   SymbolLabel,
-    Source: SourceAuto,
+    Type:   symbols.SymbolLabel,
+    Source: symbols.SourceAuto,
 })
 
 // Save to file
-err = state.Save("game.orc")
+err = stateio.Save(s, "game.orc")
 ```
 
 ### Loading and Querying State
 
 ```go
-state, err := LoadState("game.orc")
+import (
+    "opcodeoracle/internal/stateio"
+    "opcodeoracle/internal/regions"
+)
+
+s, err := stateio.Load("game.orc")
 if err != nil {
     return err
 }
 
 // Get metadata
-meta := state.Metadata()
-fmt.Printf("Source: %s\n", meta.SourceFile)
+fmt.Printf("Source: %s\n", s.Metadata.SourceFile)
 
 // Check region type at address
-region := state.Regions.At(0x0900)
-if region.Type == RegionData {
+region := s.Regions.At(0x0900)
+if region.Type == regions.RegionData {
     fmt.Println("Address is in data section")
 }
 
 // Mark address range as code
-state.Regions.Set(0x0900, 0x09FF, RegionCode)
+s.Regions.Set(0x0900, 0x09FF, regions.RegionCode)
 ```
 
 ### Adding User Annotations
 
 ```go
-state, _ := LoadState("game.orc")
+import (
+    "opcodeoracle/internal/stateio"
+    "opcodeoracle/internal/symbols"
+    "opcodeoracle/internal/annotations"
+)
+
+s, _ := stateio.Load("game.orc")
 
 // Add user symbol
-state.Symbols.Add(0x1000, Symbol{
+s.Symbols.Add(0x1000, symbols.Symbol{
     Name:   "main_loop",
-    Type:   SymbolSubroutine,
-    Source: SourceUser,
+    Type:   symbols.SymbolSubroutine,
+    Source: symbols.SourceUser,
 })
 
 // Add comment
-state.Annotations.Add(0x1000, AnnotationInline, "Main game loop - runs every frame", "user")
+s.Annotations.Add(0x1000, annotations.AnnotationInline, "Main game loop - runs every frame", "user")
 
 // Save changes
-state.Save("game.orc")
+stateio.Save(s, "game.orc")
 ```
 
 ## Error Handling

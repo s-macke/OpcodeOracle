@@ -44,7 +44,8 @@ opcodeoracle/
 │   │   └── opcodeoracle/       # CLI entry point
 │   │       └── main.go
 │   └── internal/
-│       ├── state/              # State types and file operations
+│       ├── state/              # State and Metadata types
+│       ├── stateio/            # State file I/O (Load/Save)
 │       ├── binary/             # Binary data and address translation
 │       ├── symbols/            # Symbol table implementation
 │       ├── regions/            # Region table implementation
@@ -61,7 +62,8 @@ opcodeoracle/
 | Directory                    | Purpose                                        |
 |------------------------------|------------------------------------------------|
 | `src/cmd/opcodeoracle/`      | Main entry point, CLI argument parsing         |
-| `src/internal/state/`        | State struct, JSON serialization, validation   |
+| `src/internal/state/`        | State and Metadata structs, NewState()         |
+| `src/internal/stateio/`      | State file I/O: Load(), Save(), JSON encoding  |
 | `src/internal/binary/`       | Binary struct and address translation          |
 | `src/internal/symbols/`      | Symbol types and SymbolTable interface         |
 | `src/internal/regions/`      | Region types and RegionTable interface         |
