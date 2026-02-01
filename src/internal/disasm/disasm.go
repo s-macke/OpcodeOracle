@@ -36,8 +36,8 @@ func NewDisassembler(s *state.State, boundaries analysis.InstructionBoundaries) 
 // Disassemble formats the address range [start, end) as assembly text.
 func (d *disassembler) Disassemble(start, end uint16) (string, error) {
 	// Calculate binary bounds
-	origin := d.state.Binary.Origin
-	binaryEnd := origin + uint16(len(d.state.Binary.Data)) - 1
+	origin := d.state.Binary.Start()
+	binaryEnd := d.state.Binary.End()
 
 	// Validate start address
 	if start < origin || start > binaryEnd {

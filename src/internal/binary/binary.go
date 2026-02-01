@@ -43,3 +43,13 @@ func (b *Binary) IsEntryPoint(addr uint16) bool {
 	}
 	return false
 }
+
+// Start returns the start address (origin) of the binary.
+func (b *Binary) Start() uint16 {
+	return b.Origin
+}
+
+// End returns the last valid address in the binary (inclusive).
+func (b *Binary) End() uint16 {
+	return b.Origin + uint16(len(b.Data)) - 1
+}

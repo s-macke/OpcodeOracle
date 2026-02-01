@@ -551,10 +551,10 @@ func TestIntegrationWithStateFile(t *testing.T) {
 	d := NewDisassembler(s, nil)
 
 	// Disassemble a small range
-	start := s.Binary.Origin
+	start := s.Binary.Start()
 	end := start + 50
-	if end > s.Binary.Origin+uint16(len(s.Binary.Data)) {
-		end = s.Binary.Origin + uint16(len(s.Binary.Data))
+	if end > s.Binary.End()+1 {
+		end = s.Binary.End() + 1
 	}
 
 	output, err := d.Disassemble(start, end)

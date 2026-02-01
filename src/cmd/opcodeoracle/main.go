@@ -30,6 +30,8 @@ func main() {
 			newCommand(),
 			infoCommand(),
 			exportCommand(),
+			editCommand(),
+			disasmCommand(),
 		},
 		Action: func(c *cli.Context) error {
 			if c.NArg() == 0 {

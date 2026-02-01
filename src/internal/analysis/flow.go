@@ -269,8 +269,8 @@ func calculateBranchTarget(pc uint16, operand byte) uint16 {
 
 // inBounds checks if an address is within the binary's address range.
 func (a *Analyzer) inBounds(addr uint16) bool {
-	origin := a.state.Binary.Origin
-	end := origin + uint16(len(a.state.Binary.Data)) - 1
+	origin := a.state.Binary.Start()
+	end := a.state.Binary.End()
 	return addr >= origin && addr <= end
 }
 

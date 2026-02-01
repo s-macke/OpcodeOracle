@@ -53,8 +53,8 @@ func cmdDisasm(c *cli.Context) error {
 	}
 
 	// Determine address range (use binary bounds as defaults)
-	start := s.Binary.Origin
-	end := s.Binary.Origin + uint16(len(s.Binary.Data)) - 1
+	start := s.Binary.Start()
+	end := s.Binary.End()
 
 	if startStr := c.String("start"); startStr != "" {
 		parsed, err := parseAddress(startStr)
