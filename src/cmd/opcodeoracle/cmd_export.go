@@ -54,6 +54,7 @@ func cmdExport(c *cli.Context) error {
 }
 
 // deriveOutputPath derives an output file path from the state file.
+// For testdata/Nippon.opcodeoracle.json, returns testdata/Nippon/Nippon.asm
 func deriveOutputPath(stateFile, ext string) string {
 	base := filepath.Base(stateFile)
 	// Remove .opcodeoracle.json suffix if present
@@ -63,5 +64,6 @@ func deriveOutputPath(stateFile, ext string) string {
 		// Just remove extension
 		base = strings.TrimSuffix(base, filepath.Ext(base))
 	}
-	return filepath.Join(filepath.Dir(stateFile), base+ext)
+	// Place in project subdirectory: dir/name/name.ext
+	return filepath.Join(filepath.Dir(stateFile), base, base+ext)
 }
