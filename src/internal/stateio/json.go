@@ -71,8 +71,7 @@ type jsonRegion struct {
 
 // parseHex parses a hex string like "0x0801" to uint16.
 func parseHex(s string) (uint16, error) {
-	s = strings.TrimPrefix(s, "0x")
-	s = strings.TrimPrefix(s, "0X")
+	s = strings.TrimPrefix(strings.ToLower(s), "0x")
 	val, err := strconv.ParseUint(s, 16, 16)
 	if err != nil {
 		return 0, fmt.Errorf("invalid hex address %q: %w", s, err)
@@ -88,7 +87,7 @@ func formatHex(v uint16) string {
 // stateToJSON converts a State to its JSON representation.
 func stateToJSON(s *state.State) *jsonState {
 	js := &jsonState{
-		Version: "1.0",
+		Version: "1.1",
 		Metadata: jsonMetadata{
 			Created:     s.Metadata.Created.UTC().Format(time.RFC3339),
 			Modified:    s.Metadata.Modified.UTC().Format(time.RFC3339),
@@ -107,84 +106,64 @@ func stateToJSON(s *state.State) *jsonState {
 	}
 
 	// Convert symbols
-	if s.Symbols != nil {
-		allSyms := s.Symbols.All()
-		if len(allSyms) > 0 {
-			js.Symbols = make(map[string][]jsonSymbol)
-			for addr, syms := range allSyms {
-				addrStr := formatHex(addr)
-				for _, sym := range syms {
-					js.Symbols[addrStr] = append(js.Symbols[addrStr], jsonSymbol{
-						Name:   sym.Name,
-						Type:   string(sym.Type),
-						Source: string(sym.Source),
-					})
-				}
+	if allSyms := s.Symbols.All(); len(allSyms) > 0 {
+		js.Symbols = make(map[string][]jsonSymbol)
+		for addr, syms := range allSyms {
+			addrStr := formatHex(addr)
+			for _, sym := range syms {
+				js.Symbols[addrStr] = append(js.Symbols[addrStr], jsonSymbol{
+					Name:   sym.Name,
+					Type:   string(sym.Type),
+					Source: string(sym.Source),
+				})
 			}
 		}
 	}
 
 	// Convert annotations
-	if s.Annotations != nil {
-		allAnns := s.Annotations.All()
-		if len(allAnns) > 0 {
-			js.Annotations = make(map[string]*jsonAddressAnnotations)
-			for addr, addrAnns := range allAnns {
-				addrStr := formatHex(addr)
-				jsonAddrAnns := &jsonAddressAnnotations{}
+	if allAnns := s.Annotations.All(); len(allAnns) > 0 {
+		js.Annotations = make(map[string]*jsonAddressAnnotations)
+		for addr, addrAnns := range allAnns {
+			addrStr := formatHex(addr)
+			jsonAddrAnns := &jsonAddressAnnotations{}
 
-				if addrAnns.User != nil {
-					jsonAddrAnns.User = &jsonAnnotation{
-						Comment: addrAnns.User.Comment,
-					}
-				}
-				if addrAnns.Assistant != nil {
-					jsonAddrAnns.Assistant = &jsonAnnotation{
-						Comment: addrAnns.Assistant.Comment,
-					}
-				}
-
-				js.Annotations[addrStr] = jsonAddrAnns
+			if addrAnns.User != nil {
+				jsonAddrAnns.User = &jsonAnnotation{Comment: addrAnns.User.Comment}
 			}
+			if addrAnns.Assistant != nil {
+				jsonAddrAnns.Assistant = &jsonAnnotation{Comment: addrAnns.Assistant.Comment}
+			}
+
+			js.Annotations[addrStr] = jsonAddrAnns
 		}
 	}
 
 	// Convert headlines
-	if s.Headlines != nil {
-		allHdls := s.Headlines.All()
-		if len(allHdls) > 0 {
-			js.Headlines = make(map[string]*jsonAddressHeadlines)
-			for addr, addrHdls := range allHdls {
-				addrStr := formatHex(addr)
-				jsonAddrHdls := &jsonAddressHeadlines{}
+	if allHdls := s.Headlines.All(); len(allHdls) > 0 {
+		js.Headlines = make(map[string]*jsonAddressHeadlines)
+		for addr, addrHdls := range allHdls {
+			addrStr := formatHex(addr)
+			jsonAddrHdls := &jsonAddressHeadlines{}
 
-				if addrHdls.User != nil {
-					jsonAddrHdls.User = &jsonHeadline{
-						Comment: addrHdls.User.Comment,
-					}
-				}
-				if addrHdls.Assistant != nil {
-					jsonAddrHdls.Assistant = &jsonHeadline{
-						Comment: addrHdls.Assistant.Comment,
-					}
-				}
-
-				js.Headlines[addrStr] = jsonAddrHdls
+			if addrHdls.User != nil {
+				jsonAddrHdls.User = &jsonHeadline{Comment: addrHdls.User.Comment}
 			}
+			if addrHdls.Assistant != nil {
+				jsonAddrHdls.Assistant = &jsonHeadline{Comment: addrHdls.Assistant.Comment}
+			}
+
+			js.Headlines[addrStr] = jsonAddrHdls
 		}
 	}
 
 	// Convert regions
-	if s.Regions != nil {
-		regs := s.Regions.Regions()
-		if len(regs) > 0 {
-			js.Regions = make([]jsonRegion, len(regs))
-			for i, r := range regs {
-				js.Regions[i] = jsonRegion{
-					Start: formatHex(r.Start),
-					End:   formatHex(r.End),
-					Type:  string(r.Type),
-				}
+	if regs := s.Regions.Regions(); len(regs) > 0 {
+		js.Regions = make([]jsonRegion, len(regs))
+		for i, r := range regs {
+			js.Regions[i] = jsonRegion{
+				Start: formatHex(r.Start),
+				End:   formatHex(r.End),
+				Type:  string(r.Type),
 			}
 		}
 	}
@@ -297,13 +276,8 @@ func jsonToState(js *jsonState) (*state.State, error) {
 			if err != nil {
 				return nil, fmt.Errorf("invalid region end: %w", err)
 			}
-			var regType regions.RegionType
-			switch jr.Type {
-			case "code":
-				regType = regions.RegionCode
-			case "data":
-				regType = regions.RegionData
-			default:
+			regType := regions.RegionType(jr.Type)
+			if regType != regions.RegionCode && regType != regions.RegionData {
 				return nil, fmt.Errorf("invalid region type %q", jr.Type)
 			}
 			regs[i] = regions.Region{
