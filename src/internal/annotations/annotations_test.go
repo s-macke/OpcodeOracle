@@ -220,3 +220,72 @@ func TestAnnotationTableAll(t *testing.T) {
 		t.Errorf("All()[0x0801].Assistant = %v, want Assistant 0801", addr0801.Assistant)
 	}
 }
+
+func TestAnnotationTableExtend(t *testing.T) {
+	table := NewTable()
+
+	// Extend on empty address should create new annotation
+	table.Extend(0x0800, AnnotationInline, "First line", AuthorUser)
+
+	ann := table.Get(0x0800, AuthorUser)
+	if ann == nil {
+		t.Fatal("Get(0x0800, AuthorUser) after Extend = nil, want annotation")
+	}
+	if ann.Comment != "First line" {
+		t.Errorf("ann.Comment = %q, want %q", ann.Comment, "First line")
+	}
+	if ann.Type != AnnotationInline {
+		t.Errorf("ann.Type = %v, want %v", ann.Type, AnnotationInline)
+	}
+
+	// Extend existing annotation should append with newline
+	table.Extend(0x0800, AnnotationHeadline, "Second line", AuthorUser)
+
+	ann = table.Get(0x0800, AuthorUser)
+	if ann == nil {
+		t.Fatal("Get(0x0800, AuthorUser) after second Extend = nil, want annotation")
+	}
+	want := "First line\nSecond line"
+	if ann.Comment != want {
+		t.Errorf("ann.Comment = %q, want %q", ann.Comment, want)
+	}
+	// New type should take precedence
+	if ann.Type != AnnotationHeadline {
+		t.Errorf("ann.Type = %v, want %v (new type takes precedence)", ann.Type, AnnotationHeadline)
+	}
+
+	// Extend should not affect other authors
+	table.Extend(0x0800, AnnotationInline, "Assistant note", AuthorAssistant)
+
+	userAnn := table.Get(0x0800, AuthorUser)
+	if userAnn.Comment != want {
+		t.Errorf("User annotation changed after extending assistant: %q", userAnn.Comment)
+	}
+
+	assistantAnn := table.Get(0x0800, AuthorAssistant)
+	if assistantAnn == nil {
+		t.Fatal("Get(0x0800, AuthorAssistant) = nil, want annotation")
+	}
+	if assistantAnn.Comment != "Assistant note" {
+		t.Errorf("assistantAnn.Comment = %q, want %q", assistantAnn.Comment, "Assistant note")
+	}
+}
+
+func TestAnnotationTableExtendMultiple(t *testing.T) {
+	table := NewTable()
+
+	// Extend multiple times
+	table.Extend(0x0800, AnnotationInline, "Line 1", AuthorUser)
+	table.Extend(0x0800, AnnotationInline, "Line 2", AuthorUser)
+	table.Extend(0x0800, AnnotationInline, "Line 3", AuthorUser)
+
+	ann := table.Get(0x0800, AuthorUser)
+	if ann == nil {
+		t.Fatal("Get(0x0800, AuthorUser) = nil, want annotation")
+	}
+
+	want := "Line 1\nLine 2\nLine 3"
+	if ann.Comment != want {
+		t.Errorf("ann.Comment = %q, want %q", ann.Comment, want)
+	}
+}

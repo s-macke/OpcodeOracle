@@ -148,3 +148,15 @@ func (t *Table) Clear(addr uint16) {
 func (t *Table) All() map[uint16]*AddressAnnotations {
 	return t.annotations
 }
+
+// Extend appends to the annotation for the given author at the address.
+// If no annotation exists, it creates one. Uses newline as separator.
+// The new type takes precedence over the existing type.
+func (t *Table) Extend(addr uint16, typ AnnotationType, comment string, author Author) {
+	existing := t.Get(addr, author)
+	if existing != nil {
+		// Append with newline separator
+		comment = existing.Comment + "\n" + comment
+	}
+	t.Set(addr, typ, comment, author)
+}

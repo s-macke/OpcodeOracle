@@ -18,8 +18,9 @@ func editAnnotationCommand() *cli.Command {
 		Flags: []cli.Flag{
 			&cli.StringFlag{Name: "address", Aliases: []string{"a"}, Required: true, Usage: "target address (hex like $C000 or 0xC000)"},
 			&cli.StringFlag{Name: "type", Aliases: []string{"t"}, Required: true, Usage: "annotation type (inline or headline)"},
-			&cli.StringFlag{Name: "comment", Aliases: []string{"c"}, Required: true, Usage: "annotation text"},
+			&cli.StringFlag{Name: "comment", Aliases: []string{"c"}, Usage: "annotation text (empty to remove)"},
 			&cli.StringFlag{Name: "author", Value: "user", Usage: "author (user or assistant)"},
+			&cli.BoolFlag{Name: "extend", Aliases: []string{"e"}, Usage: "append to existing annotation instead of replacing"},
 		},
 		Action: func(c *cli.Context) error {
 			if c.NArg() != 1 {
@@ -69,14 +70,22 @@ func cmdEditAnnotation(c *cli.Context, stateFile string) error {
 		return cli.Exit("error: loading state: "+err.Error(), ExitInvalidState)
 	}
 
-	// Set annotation (replaces any existing annotation for this author)
-	s.Annotations.Set(addr, annType, comment, author)
+	// Set, extend, or remove annotation
+	if comment == "" {
+		s.Annotations.Remove(addr, author)
+		fmt.Printf("Removed annotation at $%04X (author: %s)\n", addr, author)
+	} else if c.Bool("extend") {
+		s.Annotations.Extend(addr, annType, comment, author)
+		fmt.Printf("Extended %s annotation at $%04X (author: %s)\n", typeStr, addr, author)
+	} else {
+		s.Annotations.Set(addr, annType, comment, author)
+		fmt.Printf("Set %s annotation at $%04X (author: %s)\n", typeStr, addr, author)
+	}
 
 	// Save state
 	if err := stateio.Save(s, stateFile); err != nil {
 		return cli.Exit("error: saving state: "+err.Error(), ExitIOError)
 	}
 
-	fmt.Printf("Set %s annotation at $%04X (author: %s)\n", typeStr, addr, author)
 	return nil
 }
