@@ -185,7 +185,7 @@ func TestDisassembleWithAnnotations(t *testing.T) {
 	data := []byte{0xA9, 0x00, 0x60}
 	s := state.NewState(data, 0x0800, nil, "test.prg")
 	s.Regions.Set(0x0800, 0x0802, regions.RegionCode)
-	s.Annotations.Add(0x0800, annotations.AnnotationInline, "Load zero", "")
+	s.Annotations.Set(0x0800, annotations.AnnotationInline, "Load zero", annotations.AuthorUser)
 
 	d := NewDisassembler(s, nil)
 	output, err := d.Disassemble(0x0800, 0x0803)
@@ -203,7 +203,7 @@ func TestDisassembleWithHeadline(t *testing.T) {
 	data := []byte{0xA9, 0x00, 0x60}
 	s := state.NewState(data, 0x0800, nil, "test.prg")
 	s.Regions.Set(0x0800, 0x0802, regions.RegionCode)
-	s.Annotations.Add(0x0800, annotations.AnnotationHeadline, "Main entry point", "")
+	s.Annotations.Set(0x0800, annotations.AnnotationHeadline, "Main entry point", annotations.AuthorUser)
 
 	d := NewDisassembler(s, nil)
 	output, err := d.Disassemble(0x0800, 0x0803)
@@ -503,8 +503,9 @@ func TestDisassembleMultipleInlineAnnotations(t *testing.T) {
 	data := []byte{0xA9, 0x00}
 	s := state.NewState(data, 0x0800, nil, "test.prg")
 	s.Regions.Set(0x0800, 0x0801, regions.RegionCode)
-	s.Annotations.Add(0x0800, annotations.AnnotationInline, "First comment", "")
-	s.Annotations.Add(0x0800, annotations.AnnotationInline, "Second comment", "")
+	// Now we can only have one annotation per author, so use both authors
+	s.Annotations.Set(0x0800, annotations.AnnotationInline, "First comment", annotations.AuthorUser)
+	s.Annotations.Set(0x0800, annotations.AnnotationInline, "Second comment", annotations.AuthorAssistant)
 
 	d := NewDisassembler(s, nil)
 	output, err := d.Disassemble(0x0800, 0x0802)

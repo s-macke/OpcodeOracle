@@ -31,8 +31,8 @@ func TestSaveLoad(t *testing.T) {
 		Source: symbols.SourceAuto,
 	})
 
-	original.Annotations.Add(0x0801, annotations.AnnotationInline, "Entry point", "user")
-	original.Annotations.Add(0x0801, annotations.AnnotationHeadline, "Program Start", "user")
+	original.Annotations.Set(0x0801, annotations.AnnotationInline, "Entry point", annotations.AuthorUser)
+	original.Annotations.Set(0x0801, annotations.AnnotationHeadline, "Program Start", annotations.AuthorAssistant)
 
 	original.Regions.Set(0x0801, 0x0900, regions.RegionCode)
 
@@ -75,10 +75,24 @@ func TestSaveLoad(t *testing.T) {
 		t.Errorf("Symbol name = %q, want %q", syms[0].Name, "start")
 	}
 
-	// Check annotations
+	// Check annotations - should have 2 (one user, one assistant)
 	anns := loaded.Annotations.At(0x0801)
 	if len(anns) != 2 {
 		t.Errorf("Annotations at 0x0801 = %d, want 2", len(anns))
+	}
+
+	userAnn := loaded.Annotations.Get(0x0801, annotations.AuthorUser)
+	if userAnn == nil {
+		t.Error("User annotation at 0x0801 is nil")
+	} else if userAnn.Comment != "Entry point" {
+		t.Errorf("User annotation comment = %q, want %q", userAnn.Comment, "Entry point")
+	}
+
+	assistantAnn := loaded.Annotations.Get(0x0801, annotations.AuthorAssistant)
+	if assistantAnn == nil {
+		t.Error("Assistant annotation at 0x0801 is nil")
+	} else if assistantAnn.Comment != "Program Start" {
+		t.Errorf("Assistant annotation comment = %q, want %q", assistantAnn.Comment, "Program Start")
 	}
 
 	// Check regions
@@ -163,10 +177,10 @@ func TestLoadFull(t *testing.T) {
     ]
   },
   "annotations": {
-    "0x0801": [
-      {"type": "inline", "comment": "Program entry", "author": "user"},
-      {"type": "headline", "comment": "Main section", "author": "user"}
-    ]
+    "0x0801": {
+      "user": {"type": "inline", "comment": "Program entry"},
+      "assistant": {"type": "headline", "comment": "Main section"}
+    }
   },
   "regions": [
     {"start": "0x0000", "end": "0x0800", "type": "data"},
@@ -204,6 +218,16 @@ func TestLoadFull(t *testing.T) {
 	anns := s.Annotations.At(0x0801)
 	if len(anns) != 2 {
 		t.Errorf("Annotations at 0x0801 length = %d, want 2", len(anns))
+	}
+
+	userAnn := s.Annotations.Get(0x0801, annotations.AuthorUser)
+	if userAnn == nil || userAnn.Comment != "Program entry" {
+		t.Errorf("User annotation = %v, want 'Program entry'", userAnn)
+	}
+
+	assistantAnn := s.Annotations.Get(0x0801, annotations.AuthorAssistant)
+	if assistantAnn == nil || assistantAnn.Comment != "Main section" {
+		t.Errorf("Assistant annotation = %v, want 'Main section'", assistantAnn)
 	}
 
 	// Check regions
@@ -376,5 +400,51 @@ func TestFormatHex(t *testing.T) {
 		if got != tc.want {
 			t.Errorf("formatHex(%04X) = %q, want %q", tc.input, got, tc.want)
 		}
+	}
+}
+
+func TestLoadAnnotationsOnlyUser(t *testing.T) {
+	tmpDir := t.TempDir()
+	path := filepath.Join(tmpDir, "user_only.orc")
+
+	content := `{
+  "version": "1.0",
+  "metadata": {
+    "created": "2025-01-22T10:30:00Z",
+    "modified": "2025-01-22T10:30:00Z"
+  },
+  "binary": {
+    "data": [169, 0],
+    "origin": "0x0801"
+  },
+  "entryPoints": ["0x0801"],
+  "annotations": {
+    "0x0801": {
+      "user": {"type": "inline", "comment": "User only comment"}
+    }
+  }
+}`
+	if err := os.WriteFile(path, []byte(content), 0644); err != nil {
+		t.Fatalf("WriteFile() error = %v", err)
+	}
+
+	s, err := Load(path)
+	if err != nil {
+		t.Fatalf("Load() error = %v", err)
+	}
+
+	anns := s.Annotations.At(0x0801)
+	if len(anns) != 1 {
+		t.Errorf("Annotations at 0x0801 = %d, want 1", len(anns))
+	}
+
+	userAnn := s.Annotations.Get(0x0801, annotations.AuthorUser)
+	if userAnn == nil || userAnn.Comment != "User only comment" {
+		t.Errorf("User annotation = %v, want 'User only comment'", userAnn)
+	}
+
+	assistantAnn := s.Annotations.Get(0x0801, annotations.AuthorAssistant)
+	if assistantAnn != nil {
+		t.Errorf("Assistant annotation = %v, want nil", assistantAnn)
 	}
 }

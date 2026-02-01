@@ -16,13 +16,13 @@ import (
 
 // jsonState is the JSON representation of State.
 type jsonState struct {
-	Version     string                      `json:"version"`
-	Metadata    jsonMetadata                `json:"metadata"`
-	Binary      jsonBinary                  `json:"binary"`
-	EntryPoints []string                    `json:"entryPoints"`
-	Symbols     map[string][]jsonSymbol     `json:"symbols,omitempty"`
-	Annotations map[string][]jsonAnnotation `json:"annotations,omitempty"`
-	Regions     []jsonRegion                `json:"regions,omitempty"`
+	Version     string                             `json:"version"`
+	Metadata    jsonMetadata                       `json:"metadata"`
+	Binary      jsonBinary                         `json:"binary"`
+	EntryPoints []string                           `json:"entryPoints"`
+	Symbols     map[string][]jsonSymbol            `json:"symbols,omitempty"`
+	Annotations map[string]*jsonAddressAnnotations `json:"annotations,omitempty"`
+	Regions     []jsonRegion                       `json:"regions,omitempty"`
 }
 
 type jsonMetadata struct {
@@ -46,7 +46,11 @@ type jsonSymbol struct {
 type jsonAnnotation struct {
 	Type    string `json:"type"`
 	Comment string `json:"comment"`
-	Author  string `json:"author"`
+}
+
+type jsonAddressAnnotations struct {
+	User      *jsonAnnotation `json:"user,omitempty"`
+	Assistant *jsonAnnotation `json:"assistant,omitempty"`
 }
 
 type jsonRegion struct {
@@ -114,23 +118,25 @@ func stateToJSON(s *state.State) *jsonState {
 	if s.Annotations != nil {
 		allAnns := s.Annotations.All()
 		if len(allAnns) > 0 {
-			js.Annotations = make(map[string][]jsonAnnotation)
-			for addr, anns := range allAnns {
+			js.Annotations = make(map[string]*jsonAddressAnnotations)
+			for addr, addrAnns := range allAnns {
 				addrStr := formatHex(addr)
-				for _, ann := range anns {
-					var typStr string
-					switch ann.Type {
-					case annotations.AnnotationInline:
-						typStr = "inline"
-					case annotations.AnnotationHeadline:
-						typStr = "headline"
+				jsonAddrAnns := &jsonAddressAnnotations{}
+
+				if addrAnns.User != nil {
+					jsonAddrAnns.User = &jsonAnnotation{
+						Type:    annotationTypeToString(addrAnns.User.Type),
+						Comment: addrAnns.User.Comment,
 					}
-					js.Annotations[addrStr] = append(js.Annotations[addrStr], jsonAnnotation{
-						Type:    typStr,
-						Comment: ann.Comment,
-						Author:  ann.Author,
-					})
 				}
+				if addrAnns.Assistant != nil {
+					jsonAddrAnns.Assistant = &jsonAnnotation{
+						Type:    annotationTypeToString(addrAnns.Assistant.Type),
+						Comment: addrAnns.Assistant.Comment,
+					}
+				}
+
+				js.Annotations[addrStr] = jsonAddrAnns
 			}
 		}
 	}
@@ -151,6 +157,28 @@ func stateToJSON(s *state.State) *jsonState {
 	}
 
 	return js
+}
+
+func annotationTypeToString(t annotations.AnnotationType) string {
+	switch t {
+	case annotations.AnnotationInline:
+		return "inline"
+	case annotations.AnnotationHeadline:
+		return "headline"
+	default:
+		return "inline"
+	}
+}
+
+func stringToAnnotationType(s string) (annotations.AnnotationType, error) {
+	switch s {
+	case "inline":
+		return annotations.AnnotationInline, nil
+	case "headline":
+		return annotations.AnnotationHeadline, nil
+	default:
+		return 0, fmt.Errorf("invalid annotation type %q", s)
+	}
 }
 
 // jsonToState converts a JSON representation to a State.
@@ -212,22 +240,26 @@ func jsonToState(js *jsonState) (*state.State, error) {
 	}
 
 	// Convert annotations
-	for addrStr, anns := range js.Annotations {
+	for addrStr, addrAnns := range js.Annotations {
 		addr, err := parseHex(addrStr)
 		if err != nil {
 			return nil, fmt.Errorf("invalid annotation address: %w", err)
 		}
-		for _, ann := range anns {
-			var annType annotations.AnnotationType
-			switch ann.Type {
-			case "inline":
-				annType = annotations.AnnotationInline
-			case "headline":
-				annType = annotations.AnnotationHeadline
-			default:
-				return nil, fmt.Errorf("invalid annotation type %q at address %s", ann.Type, addrStr)
+
+		if addrAnns.User != nil {
+			annType, err := stringToAnnotationType(addrAnns.User.Type)
+			if err != nil {
+				return nil, fmt.Errorf("at address %s user: %w", addrStr, err)
 			}
-			s.Annotations.Add(addr, annType, ann.Comment, ann.Author)
+			s.Annotations.Set(addr, annType, addrAnns.User.Comment, annotations.AuthorUser)
+		}
+
+		if addrAnns.Assistant != nil {
+			annType, err := stringToAnnotationType(addrAnns.Assistant.Type)
+			if err != nil {
+				return nil, fmt.Errorf("at address %s assistant: %w", addrStr, err)
+			}
+			s.Annotations.Set(addr, annType, addrAnns.Assistant.Comment, annotations.AuthorAssistant)
 		}
 	}
 
