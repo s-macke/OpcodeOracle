@@ -2,8 +2,6 @@
 package export
 
 import (
-	"sort"
-
 	"opcodeoracle/internal/regions"
 	"opcodeoracle/internal/symbols"
 )
@@ -30,8 +28,8 @@ func (e *Exporter) identifySegments() []Segment {
 	var segments []Segment
 
 	// Calculate binary bounds
-	binStart := e.state.Binary.Origin
-	binEnd := binStart + uint16(len(e.state.Binary.Data)) - 1
+	binStart := e.state.Binary.Start()
+	binEnd := e.state.Binary.End()
 
 	for _, region := range e.state.Regions.Regions() {
 		// Skip regions completely outside binary bounds
@@ -59,7 +57,7 @@ func (e *Exporter) identifySegments() []Segment {
 			})
 		} else {
 			// Code region - split by subroutine/entry symbols
-			subSymbols := e.findSubroutineSymbols(start, end)
+			subSymbols := e.state.Symbols.SubroutinesInRange(start, end)
 
 			if len(subSymbols) == 0 {
 				// No subroutines - entire region is code
@@ -78,48 +76,17 @@ func (e *Exporter) identifySegments() []Segment {
 	return segments
 }
 
-// symbolEntry holds a symbol's address and name for sorting.
-type symbolEntry struct {
-	addr uint16
-	name string
-}
-
-// findSubroutineSymbols returns all subroutine/entry symbols within the address range.
-func (e *Exporter) findSubroutineSymbols(start, end uint16) []symbolEntry {
-	var result []symbolEntry
-
-	allSymbols := e.state.Symbols.All()
-	for addr, syms := range allSymbols {
-		if addr < start || addr > end {
-			continue
-		}
-		for _, sym := range syms {
-			if sym.Type == symbols.SymbolSubroutine || sym.Type == symbols.SymbolEntry {
-				result = append(result, symbolEntry{addr: addr, name: sym.Name})
-				break // Only need one symbol per address
-			}
-		}
-	}
-
-	// Sort by address
-	sort.Slice(result, func(i, j int) bool {
-		return result[i].addr < result[j].addr
-	})
-
-	return result
-}
-
 // splitBySubroutines splits a code region into segments at subroutine boundaries.
-func (e *Exporter) splitBySubroutines(region regions.Region, subSymbols []symbolEntry) []Segment {
+func (e *Exporter) splitBySubroutines(region regions.Region, subSymbols []symbols.AddressedSymbol) []Segment {
 	var segments []Segment
 	addr := region.Start
 
 	for i, sym := range subSymbols {
-		if addr < sym.addr {
+		if addr < sym.Addr {
 			// Code before this subroutine
 			segments = append(segments, Segment{
 				Start: addr,
-				End:   sym.addr - 1,
+				End:   sym.Addr - 1,
 				Type:  SegmentCode,
 			})
 		}
@@ -127,16 +94,16 @@ func (e *Exporter) splitBySubroutines(region regions.Region, subSymbols []symbol
 		// Find end address (next symbol or region end)
 		var endAddr uint16
 		if i+1 < len(subSymbols) {
-			endAddr = subSymbols[i+1].addr - 1
+			endAddr = subSymbols[i+1].Addr - 1
 		} else {
 			endAddr = region.End
 		}
 
 		segments = append(segments, Segment{
-			Start: sym.addr,
+			Start: sym.Addr,
 			End:   endAddr,
 			Type:  SegmentSub,
-			Name:  sym.name,
+			Name:  sym.Symbol.Name,
 		})
 
 		addr = endAddr + 1

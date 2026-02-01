@@ -91,3 +91,62 @@ func TestSymbolTableDuplicate(t *testing.T) {
 		t.Errorf("At(0x0800) returned %d symbols, want 2", len(syms))
 	}
 }
+
+func TestSubroutinesInRange(t *testing.T) {
+	t.Run("empty table returns empty slice", func(t *testing.T) {
+		table := NewTable()
+		result := table.SubroutinesInRange(0x0800, 0x0900)
+		if len(result) != 0 {
+			t.Errorf("SubroutinesInRange on empty table returned %d symbols, want 0", len(result))
+		}
+	})
+
+	t.Run("symbols outside range are excluded", func(t *testing.T) {
+		table := NewTable()
+		table.Add(0x0700, Symbol{Name: "before", Type: SymbolSubroutine, Source: SourceUser})
+		table.Add(0x0800, Symbol{Name: "inside", Type: SymbolSubroutine, Source: SourceUser})
+		table.Add(0x0900, Symbol{Name: "atEnd", Type: SymbolSubroutine, Source: SourceUser})
+		table.Add(0x0901, Symbol{Name: "after", Type: SymbolSubroutine, Source: SourceUser})
+
+		result := table.SubroutinesInRange(0x0800, 0x0900)
+		if len(result) != 2 {
+			t.Fatalf("SubroutinesInRange returned %d symbols, want 2", len(result))
+		}
+		if result[0].Symbol.Name != "inside" || result[1].Symbol.Name != "atEnd" {
+			t.Errorf("SubroutinesInRange returned wrong symbols: %v", result)
+		}
+	})
+
+	t.Run("only subroutine/entry types are included", func(t *testing.T) {
+		table := NewTable()
+		table.Add(0x0800, Symbol{Name: "sub", Type: SymbolSubroutine, Source: SourceUser})
+		table.Add(0x0810, Symbol{Name: "entry", Type: SymbolEntry, Source: SourceUser})
+		table.Add(0x0820, Symbol{Name: "label", Type: SymbolLabel, Source: SourceUser})
+		table.Add(0x0830, Symbol{Name: "byte", Type: SymbolByte, Source: SourceUser})
+		table.Add(0x0840, Symbol{Name: "word", Type: SymbolWord, Source: SourceUser})
+
+		result := table.SubroutinesInRange(0x0800, 0x0900)
+		if len(result) != 2 {
+			t.Fatalf("SubroutinesInRange returned %d symbols, want 2", len(result))
+		}
+		if result[0].Symbol.Name != "sub" || result[1].Symbol.Name != "entry" {
+			t.Errorf("SubroutinesInRange returned wrong symbols: %v", result)
+		}
+	})
+
+	t.Run("results are sorted by address", func(t *testing.T) {
+		table := NewTable()
+		// Add in non-sorted order
+		table.Add(0x0850, Symbol{Name: "third", Type: SymbolSubroutine, Source: SourceUser})
+		table.Add(0x0810, Symbol{Name: "first", Type: SymbolEntry, Source: SourceUser})
+		table.Add(0x0830, Symbol{Name: "second", Type: SymbolSubroutine, Source: SourceUser})
+
+		result := table.SubroutinesInRange(0x0800, 0x0900)
+		if len(result) != 3 {
+			t.Fatalf("SubroutinesInRange returned %d symbols, want 3", len(result))
+		}
+		if result[0].Addr != 0x0810 || result[1].Addr != 0x0830 || result[2].Addr != 0x0850 {
+			t.Errorf("SubroutinesInRange not sorted by address: %v", result)
+		}
+	})
+}

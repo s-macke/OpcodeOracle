@@ -1,5 +1,7 @@
 package symbols
 
+import "sort"
+
 type SymbolType string
 
 const (
@@ -70,4 +72,33 @@ func (t *Table) Remove(addr uint16, name string) {
 // All returns all symbols as a map from address to symbol slice.
 func (t *Table) All() map[uint16][]Symbol {
 	return t.symbols
+}
+
+// AddressedSymbol pairs a symbol with its address.
+type AddressedSymbol struct {
+	Addr   uint16
+	Symbol Symbol
+}
+
+// SubroutinesInRange returns all subroutine/entry symbols within [start, end], sorted by address.
+func (t *Table) SubroutinesInRange(start, end uint16) []AddressedSymbol {
+	var result []AddressedSymbol
+
+	for addr, syms := range t.symbols {
+		if addr < start || addr > end {
+			continue
+		}
+		for _, sym := range syms {
+			if sym.Type == SymbolSubroutine || sym.Type == SymbolEntry {
+				result = append(result, AddressedSymbol{Addr: addr, Symbol: sym})
+				break // Only need one symbol per address
+			}
+		}
+	}
+
+	sort.Slice(result, func(i, j int) bool {
+		return result[i].Addr < result[j].Addr
+	})
+
+	return result
 }
