@@ -810,3 +810,226 @@ func TestUpdateFlagsNoRegions(t *testing.T) {
 		t.Error("Regions should not be updated with UpdateSymbols|UpdateXRefs")
 	}
 }
+
+func TestIsInstructionAt(t *testing.T) {
+	// Program: LDA #$42, NOP, RTS
+	// Instruction boundaries at: $1000 (LDA), $1002 (NOP), $1003 (RTS)
+	// Non-boundaries at: $1001 (operand of LDA)
+	data := []byte{
+		0xA9, 0x42, // LDA #$42
+		0xEA, // NOP
+		0x60, // RTS
+	}
+
+	s := newTestState(data, 0x1000, []uint16{0x1000})
+	analyzer := NewAnalyzer(s, UpdateAll)
+
+	if err := analyzer.Analyze(); err != nil {
+		t.Fatalf("Analyze failed: %v", err)
+	}
+
+	// Test instruction boundaries
+	tests := []struct {
+		addr     uint16
+		expected bool
+	}{
+		{0x1000, true},  // LDA instruction start
+		{0x1001, false}, // Operand of LDA, not an instruction start
+		{0x1002, true},  // NOP instruction start
+		{0x1003, true},  // RTS instruction start
+		{0x1004, false}, // Beyond code
+		{0x0FFF, false}, // Before code
+	}
+
+	for _, tc := range tests {
+		got := analyzer.IsInstructionAt(tc.addr)
+		if got != tc.expected {
+			t.Errorf("IsInstructionAt(0x%04X): got %v, want %v", tc.addr, got, tc.expected)
+		}
+	}
+}
+
+func TestInstructionAddresses(t *testing.T) {
+	// Program with jumps to test non-sequential discovery
+	// 1000: 4C 10 10  JMP $1010
+	// ... padding ...
+	// 1010: EA        NOP
+	// 1011: 60        RTS
+	data := make([]byte, 0x12)
+	data[0x00] = 0x4C // JMP abs
+	data[0x01] = 0x10 // low byte of $1010
+	data[0x02] = 0x10 // high byte of $1010
+	data[0x10] = 0xEA // NOP
+	data[0x11] = 0x60 // RTS
+
+	s := newTestState(data, 0x1000, []uint16{0x1000})
+	analyzer := NewAnalyzer(s, UpdateAll)
+
+	if err := analyzer.Analyze(); err != nil {
+		t.Fatalf("Analyze failed: %v", err)
+	}
+
+	addrs := analyzer.InstructionAddresses()
+
+	// Should have 3 instruction addresses: $1000, $1010, $1011
+	if len(addrs) != 3 {
+		t.Errorf("Expected 3 instruction addresses, got %d", len(addrs))
+	}
+
+	// Verify sorted order
+	for i := 1; i < len(addrs); i++ {
+		if addrs[i] <= addrs[i-1] {
+			t.Errorf("InstructionAddresses not sorted: %04X <= %04X", addrs[i], addrs[i-1])
+		}
+	}
+
+	// Verify expected addresses present
+	expected := []uint16{0x1000, 0x1010, 0x1011}
+	if len(addrs) == len(expected) {
+		for i, addr := range addrs {
+			if addr != expected[i] {
+				t.Errorf("InstructionAddresses[%d]: got 0x%04X, want 0x%04X", i, addr, expected[i])
+			}
+		}
+	}
+}
+
+func TestInstructionAddressesEmpty(t *testing.T) {
+	// Analyzer with no analysis performed
+	data := []byte{0xEA, 0x60}
+	s := newTestState(data, 0x1000, []uint16{})
+	analyzer := NewAnalyzer(s, UpdateAll)
+
+	// Don't call Analyze - test empty case
+	addrs := analyzer.InstructionAddresses()
+
+	if len(addrs) != 0 {
+		t.Errorf("Expected empty slice, got %d addresses", len(addrs))
+	}
+}
+
+func TestInstructionBoundariesInterface(t *testing.T) {
+	// Verify Analyzer implements InstructionBoundaries interface
+	data := []byte{0xEA, 0x60}
+	s := newTestState(data, 0x1000, []uint16{0x1000})
+	analyzer := NewAnalyzer(s, UpdateAll)
+
+	// This assignment verifies the interface is implemented
+	var _ InstructionBoundaries = analyzer
+
+	if err := analyzer.Analyze(); err != nil {
+		t.Fatalf("Analyze failed: %v", err)
+	}
+
+	// Use through interface
+	var boundaries InstructionBoundaries = analyzer
+	if !boundaries.IsInstructionAt(0x1000) {
+		t.Error("Interface method IsInstructionAt should return true for 0x1000")
+	}
+	if len(boundaries.InstructionAddresses()) != 2 {
+		t.Error("Interface method InstructionAddresses should return 2 addresses")
+	}
+}
+
+func TestIsInstructionDataAt(t *testing.T) {
+	// Program with various instruction sizes:
+	// 1000: 20 34 12  JSR $1234 (3 bytes)
+	// 1003: A9 42     LDA #$42  (2 bytes)
+	// 1005: EA        NOP       (1 byte)
+	// 1006: 60        RTS       (1 byte)
+	data := []byte{
+		0x20, 0x34, 0x12, // JSR $1234 (target out of bounds, that's ok)
+		0xA9, 0x42, // LDA #$42
+		0xEA, // NOP
+		0x60, // RTS
+	}
+
+	s := newTestState(data, 0x1000, []uint16{0x1000})
+	analyzer := NewAnalyzer(s, UpdateAll)
+
+	if err := analyzer.Analyze(); err != nil {
+		t.Fatalf("Analyze failed: %v", err)
+	}
+
+	tests := []struct {
+		addr              uint16
+		isInstruction     bool
+		isInstructionData bool
+		desc              string
+	}{
+		// JSR $1234 at $1000 (3 bytes)
+		{0x1000, true, false, "JSR opcode byte"},
+		{0x1001, false, true, "JSR low address byte"},
+		{0x1002, false, true, "JSR high address byte"},
+
+		// LDA #$42 at $1003 (2 bytes)
+		{0x1003, true, false, "LDA opcode byte"},
+		{0x1004, false, true, "LDA immediate operand"},
+
+		// NOP at $1005 (1 byte)
+		{0x1005, true, false, "NOP (1-byte instruction)"},
+
+		// RTS at $1006 (1 byte)
+		{0x1006, true, false, "RTS (1-byte instruction)"},
+
+		// Addresses outside instruction range
+		{0x1007, false, false, "beyond code"},
+		{0x0FFF, false, false, "before code"},
+	}
+
+	for _, tc := range tests {
+		gotInstr := analyzer.IsInstructionAt(tc.addr)
+		gotData := analyzer.IsInstructionDataAt(tc.addr)
+
+		if gotInstr != tc.isInstruction {
+			t.Errorf("IsInstructionAt(0x%04X) [%s]: got %v, want %v",
+				tc.addr, tc.desc, gotInstr, tc.isInstruction)
+		}
+		if gotData != tc.isInstructionData {
+			t.Errorf("IsInstructionDataAt(0x%04X) [%s]: got %v, want %v",
+				tc.addr, tc.desc, gotData, tc.isInstructionData)
+		}
+	}
+}
+
+func TestIsInstructionDataAtEmpty(t *testing.T) {
+	// Analyzer with no analysis performed
+	data := []byte{0xEA, 0x60}
+	s := newTestState(data, 0x1000, []uint16{})
+	analyzer := NewAnalyzer(s, UpdateAll)
+
+	// Don't call Analyze - test empty case
+	if analyzer.IsInstructionDataAt(0x1000) {
+		t.Error("IsInstructionDataAt should return false before analysis")
+	}
+	if analyzer.IsInstructionDataAt(0x1001) {
+		t.Error("IsInstructionDataAt should return false before analysis")
+	}
+}
+
+func TestIsInstructionDataAtMutuallyExclusive(t *testing.T) {
+	// Verify that no address can be both an instruction start and instruction data
+	// Program: JSR $1010, RTS, ... subroutine at $1010: LDA #$00, RTS
+	data := make([]byte, 0x14)
+	data[0x00] = 0x20 // JSR
+	data[0x01] = 0x10 // low byte of $1010
+	data[0x02] = 0x10 // high byte of $1010
+	data[0x03] = 0x60 // RTS
+	data[0x10] = 0xA9 // LDA #$00
+	data[0x11] = 0x00 // immediate value
+	data[0x12] = 0x60 // RTS
+
+	s := newTestState(data, 0x1000, []uint16{0x1000})
+	analyzer := NewAnalyzer(s, UpdateAll)
+
+	if err := analyzer.Analyze(); err != nil {
+		t.Fatalf("Analyze failed: %v", err)
+	}
+
+	// Check all analyzed addresses
+	for _, addr := range analyzer.InstructionAddresses() {
+		if analyzer.IsInstructionDataAt(addr) {
+			t.Errorf("Address 0x%04X is both instruction start and instruction data", addr)
+		}
+	}
+}

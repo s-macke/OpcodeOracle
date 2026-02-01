@@ -39,20 +39,22 @@ const (
 
 // Analyzer performs control flow analysis on 6502 code.
 type Analyzer struct {
-	state   *state.State
-	flags   UpdateFlags
-	visited map[uint16]bool
-	queue   []uint16
+	state        *state.State
+	flags        UpdateFlags
+	visited      map[uint16]bool
+	operandBytes map[uint16]bool // tracks operand byte addresses (2nd/3rd bytes of instructions)
+	queue        []uint16
 }
 
 // NewAnalyzer creates a new flow analyzer for the given state.
 // The flags parameter controls which state components are updated during analysis.
 func NewAnalyzer(s *state.State, flags UpdateFlags) *Analyzer {
 	return &Analyzer{
-		state:   s,
-		flags:   flags,
-		visited: make(map[uint16]bool),
-		queue:   make([]uint16, 0),
+		state:        s,
+		flags:        flags,
+		visited:      make(map[uint16]bool),
+		operandBytes: make(map[uint16]bool),
+		queue:        make([]uint16, 0),
 	}
 }
 
@@ -161,6 +163,11 @@ func (a *Analyzer) process(addr uint16) error {
 
 	// Mark address as visited
 	a.visited[addr] = true
+
+	// Mark operand bytes (2nd and 3rd bytes of multi-byte instructions)
+	for i := uint16(1); i < uint16(def.Size); i++ {
+		a.operandBytes[addr+i] = true
+	}
 
 	// Mark instruction bytes as code
 	if a.flags&UpdateRegions != 0 {
