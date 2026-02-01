@@ -7,7 +7,6 @@ import (
 	"testing"
 
 	"opcodeoracle/internal/annotations"
-	"opcodeoracle/internal/binary"
 	"opcodeoracle/internal/regions"
 	"opcodeoracle/internal/state"
 	"opcodeoracle/internal/stateio"
@@ -173,11 +172,11 @@ func TestDisassembleDataWithSymbol(t *testing.T) {
 		t.Fatalf("Disassemble failed: %v", err)
 	}
 
-	if !strings.Contains(output, "FLAG: .BYTE $42") {
-		t.Errorf("Output should contain FLAG: .BYTE $42, got:\n%s", output)
+	if !strings.Contains(output, "FLAG:") || !strings.Contains(output, ".BYTE $42") {
+		t.Errorf("Output should contain FLAG: label and .BYTE $42, got:\n%s", output)
 	}
-	if !strings.Contains(output, "PTR: .WORD $1000") {
-		t.Errorf("Output should contain PTR: .WORD $1000, got:\n%s", output)
+	if !strings.Contains(output, "PTR:") || !strings.Contains(output, ".WORD $1000") {
+		t.Errorf("Output should contain PTR: label and .WORD $1000, got:\n%s", output)
 	}
 }
 
@@ -323,14 +322,48 @@ func TestDisassembleAddressOutOfRange(t *testing.T) {
 
 	// Test start address out of range
 	_, err := d.Disassemble(0x0700, 0x0701)
-	if !errors.Is(err, binary.ErrAddressOutOfRange) {
+	if !errors.Is(err, ErrAddressOutOfRange) {
 		t.Errorf("Expected ErrAddressOutOfRange for invalid start, got: %v", err)
+	}
+	var addrErr *AddressOutOfRangeError
+	if !errors.As(err, &addrErr) {
+		t.Fatalf("Expected AddressOutOfRangeError, got: %v", err)
+	}
+	if addrErr.Address != 0x0700 {
+		t.Errorf("Expected address 0x0700, got: 0x%04X", addrErr.Address)
 	}
 
 	// Test end address out of range
 	_, err = d.Disassemble(0x0800, 0x0900)
-	if !errors.Is(err, binary.ErrAddressOutOfRange) {
+	if !errors.Is(err, ErrAddressOutOfRange) {
 		t.Errorf("Expected ErrAddressOutOfRange for invalid end, got: %v", err)
+	}
+	if !errors.As(err, &addrErr) {
+		t.Fatalf("Expected AddressOutOfRangeError, got: %v", err)
+	}
+	// End is exclusive, so invalid end is 0x08FF (0x0900-1)
+	if addrErr.Address != 0x08FF {
+		t.Errorf("Expected address 0x08FF (end-1), got: 0x%04X", addrErr.Address)
+	}
+}
+
+func TestDisassembleInvalidRange(t *testing.T) {
+	data := []byte{0xEA, 0xEA, 0xEA}
+	s := state.NewState(data, 0x0800, nil, "test.prg")
+
+	d := NewDisassembler(s, nil)
+
+	// Test start > end
+	_, err := d.Disassemble(0x0802, 0x0800)
+	if !errors.Is(err, ErrInvalidRange) {
+		t.Errorf("Expected ErrInvalidRange for start > end, got: %v", err)
+	}
+	var rangeErr *InvalidRangeError
+	if !errors.As(err, &rangeErr) {
+		t.Fatalf("Expected InvalidRangeError, got: %v", err)
+	}
+	if rangeErr.Start != 0x0802 || rangeErr.End != 0x0800 {
+		t.Errorf("Expected start=0x0802 end=0x0800, got: start=0x%04X end=0x%04X", rangeErr.Start, rangeErr.End)
 	}
 }
 

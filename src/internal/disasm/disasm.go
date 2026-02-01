@@ -8,7 +8,6 @@ import (
 	"opcodeoracle/internal/analysis"
 	"opcodeoracle/internal/annotations"
 	"opcodeoracle/internal/asm"
-	"opcodeoracle/internal/binary"
 	"opcodeoracle/internal/regions"
 	"opcodeoracle/internal/state"
 	"opcodeoracle/internal/symbols"
@@ -36,14 +35,31 @@ func NewDisassembler(s *state.State, boundaries analysis.InstructionBoundaries) 
 
 // Disassemble formats the address range [start, end) as assembly text.
 func (d *disassembler) Disassemble(start, end uint16) (string, error) {
-	// Validate addresses against binary bounds
-	if _, err := d.state.Binary.ReadByte(start); err != nil {
-		return "", binary.ErrAddressOutOfRange
-	}
-	if end > start {
-		if _, err := d.state.Binary.ReadByte(end - 1); err != nil {
-			return "", binary.ErrAddressOutOfRange
+	// Calculate binary bounds
+	origin := d.state.Binary.Origin
+	binaryEnd := origin + uint16(len(d.state.Binary.Data)) - 1
+
+	// Validate start address
+	if start < origin || start > binaryEnd {
+		return "", &AddressOutOfRangeError{
+			Address:    start,
+			RangeStart: origin,
+			RangeEnd:   binaryEnd,
 		}
+	}
+
+	// Validate end address (end is exclusive, so check end-1)
+	if end > start && (end-1 < origin || end-1 > binaryEnd) {
+		return "", &AddressOutOfRangeError{
+			Address:    end - 1,
+			RangeStart: origin,
+			RangeEnd:   binaryEnd,
+		}
+	}
+
+	// Validate range order
+	if start > end {
+		return "", &InvalidRangeError{Start: start, End: end}
 	}
 
 	var sb strings.Builder
