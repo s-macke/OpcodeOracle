@@ -8,6 +8,7 @@ func editCommand() *cli.Command {
 		Usage: "Edit state file",
 		Subcommands: []*cli.Command{
 			editAnnotationCommand(),
+			editHeadlineCommand(),
 			editSymbolCommand(),
 		},
 	}

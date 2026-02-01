@@ -5,6 +5,7 @@ import (
 
 	"opcodeoracle/internal/annotations"
 	"opcodeoracle/internal/binary"
+	"opcodeoracle/internal/headlines"
 	"opcodeoracle/internal/regions"
 	"opcodeoracle/internal/symbols"
 	"opcodeoracle/internal/xrefs"
@@ -35,6 +36,7 @@ func NewState(data []byte, origin uint16, entryPoints []uint16, sourceFile strin
 		EntryPoints: entryPoints,
 		Symbols:     symbols.NewTable(),
 		Annotations: annotations.NewTable(),
+		Headlines:   headlines.NewTable(),
 		Regions:     regTable,
 		XRefs:       xrefs.NewTable(),
 	}

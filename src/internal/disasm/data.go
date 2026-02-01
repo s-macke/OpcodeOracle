@@ -14,12 +14,12 @@ func (d *disassembler) formatDataAt(addr, end uint16, needsBlankLine *bool) (str
 	var sb strings.Builder
 
 	// Output headline annotations
-	headlines := d.getHeadlineAnnotations(addr, addr+1)
-	if len(headlines) > 0 {
+	hdls := d.getHeadlines(addr, addr+1)
+	if len(hdls) > 0 {
 		if *needsBlankLine {
 			sb.WriteString("\n")
 		}
-		sb.WriteString(d.formatHeadlines(headlines))
+		sb.WriteString(d.formatHeadlines(hdls))
 		*needsBlankLine = false
 	}
 
@@ -79,7 +79,7 @@ func (d *disassembler) formatDataAt(addr, end uint16, needsBlankLine *bool) (str
 		if *needsBlankLine {
 			sb.WriteString("\n")
 		}
-		sb.WriteString(d.formatHeadlines(inlines))
+		sb.WriteString(d.formatInlinesAsHeadlines(inlines))
 		*needsBlankLine = false
 	}
 
@@ -111,6 +111,17 @@ func (d *disassembler) formatDataAt(addr, end uint16, needsBlankLine *bool) (str
 	return sb.String(), chunkSize
 }
 
+// formatInlinesAsHeadlines formats inline annotations as a headline block (for data).
+func (d *disassembler) formatInlinesAsHeadlines(inlines []inlineAnnotation) string {
+	var sb strings.Builder
+	sb.WriteString("; --------------------------------------------------------\n")
+	for _, i := range inlines {
+		sb.WriteString("; " + i.Comment + "\n")
+	}
+	sb.WriteString("; --------------------------------------------------------\n")
+	return sb.String()
+}
+
 // calculateDataChunkSize determines how many bytes to include in a data row.
 func (d *disassembler) calculateDataChunkSize(addr, end uint16) int {
 	// Calculate bytes to next 16-byte boundary
@@ -125,7 +136,7 @@ func (d *disassembler) calculateDataChunkSize(addr, end uint16) int {
 		maxBytes = remaining
 	}
 
-	// Check for region boundaries, symbols, or annotations that would break the row
+	// Check for region boundaries, symbols, headlines, or annotations that would break the row
 	for i := 1; i < maxBytes; i++ {
 		nextAddr := addr + uint16(i)
 
@@ -139,7 +150,12 @@ func (d *disassembler) calculateDataChunkSize(addr, end uint16) int {
 			return i
 		}
 
-		// Check for any annotation (breaks chunk)
+		// Check for headline
+		if d.state.Headlines != nil && len(d.state.Headlines.At(nextAddr)) > 0 {
+			return i
+		}
+
+		// Check for inline annotation (breaks chunk)
 		if len(d.state.Annotations.At(nextAddr)) > 0 {
 			return i
 		}

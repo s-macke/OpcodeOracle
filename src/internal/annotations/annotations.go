@@ -1,51 +1,10 @@
 package annotations
 
-import "errors"
-
-var (
-	ErrInvalidAuthor = errors.New("invalid author: must be 'user' or 'assistant'")
-)
-
-type AnnotationType int
-
-const (
-	AnnotationInline AnnotationType = iota
-	AnnotationHeadline
-)
-
-type Author int
-
-const (
-	AuthorUser Author = iota
-	AuthorAssistant
-)
-
-func (a Author) String() string {
-	switch a {
-	case AuthorUser:
-		return "user"
-	case AuthorAssistant:
-		return "assistant"
-	default:
-		return "unknown"
-	}
-}
-
-func ParseAuthor(s string) (Author, error) {
-	switch s {
-	case "user":
-		return AuthorUser, nil
-	case "assistant":
-		return AuthorAssistant, nil
-	default:
-		return 0, ErrInvalidAuthor
-	}
-}
+import "opcodeoracle/internal/author"
 
 type Annotation struct {
-	Type    AnnotationType
 	Comment string
-	Author  Author
+	Author  author.Author
 }
 
 // AddressAnnotations holds up to two annotations per address (one per author).
@@ -65,11 +24,10 @@ func NewTable() *Table {
 }
 
 // Set sets the annotation for the given author at the address (replaces any existing).
-func (t *Table) Set(addr uint16, typ AnnotationType, comment string, author Author) {
+func (t *Table) Set(addr uint16, comment string, a author.Author) {
 	ann := &Annotation{
-		Type:    typ,
 		Comment: comment,
-		Author:  author,
+		Author:  a,
 	}
 
 	addrAnns := t.annotations[addr]
@@ -78,25 +36,25 @@ func (t *Table) Set(addr uint16, typ AnnotationType, comment string, author Auth
 		t.annotations[addr] = addrAnns
 	}
 
-	switch author {
-	case AuthorUser:
+	switch a {
+	case author.User:
 		addrAnns.User = ann
-	case AuthorAssistant:
+	case author.Assistant:
 		addrAnns.Assistant = ann
 	}
 }
 
 // Get returns the annotation for the given author at the address (nil if none).
-func (t *Table) Get(addr uint16, author Author) *Annotation {
+func (t *Table) Get(addr uint16, a author.Author) *Annotation {
 	addrAnns := t.annotations[addr]
 	if addrAnns == nil {
 		return nil
 	}
 
-	switch author {
-	case AuthorUser:
+	switch a {
+	case author.User:
 		return addrAnns.User
-	case AuthorAssistant:
+	case author.Assistant:
 		return addrAnns.Assistant
 	}
 	return nil
@@ -120,16 +78,16 @@ func (t *Table) At(addr uint16) []Annotation {
 }
 
 // Remove removes the annotation for the given author at the address.
-func (t *Table) Remove(addr uint16, author Author) {
+func (t *Table) Remove(addr uint16, a author.Author) {
 	addrAnns := t.annotations[addr]
 	if addrAnns == nil {
 		return
 	}
 
-	switch author {
-	case AuthorUser:
+	switch a {
+	case author.User:
 		addrAnns.User = nil
-	case AuthorAssistant:
+	case author.Assistant:
 		addrAnns.Assistant = nil
 	}
 
@@ -151,12 +109,11 @@ func (t *Table) All() map[uint16]*AddressAnnotations {
 
 // Extend appends to the annotation for the given author at the address.
 // If no annotation exists, it creates one. Uses newline as separator.
-// The new type takes precedence over the existing type.
-func (t *Table) Extend(addr uint16, typ AnnotationType, comment string, author Author) {
-	existing := t.Get(addr, author)
+func (t *Table) Extend(addr uint16, comment string, a author.Author) {
+	existing := t.Get(addr, a)
 	if existing != nil {
 		// Append with newline separator
 		comment = existing.Comment + "\n" + comment
 	}
-	t.Set(addr, typ, comment, author)
+	t.Set(addr, comment, a)
 }

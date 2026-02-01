@@ -2,6 +2,8 @@ package annotations
 
 import (
 	"testing"
+
+	"opcodeoracle/internal/author"
 )
 
 func TestAnnotationTable(t *testing.T) {
@@ -14,7 +16,7 @@ func TestAnnotationTable(t *testing.T) {
 	}
 
 	// Set user annotation
-	table.Set(0x0800, AnnotationInline, "Initialize", AuthorUser)
+	table.Set(0x0800, "Initialize", author.User)
 
 	anns = table.At(0x0800)
 	if len(anns) != 1 {
@@ -23,15 +25,12 @@ func TestAnnotationTable(t *testing.T) {
 	if anns[0].Comment != "Initialize" {
 		t.Errorf("At(0x0800)[0].Comment = %q, want %q", anns[0].Comment, "Initialize")
 	}
-	if anns[0].Type != AnnotationInline {
-		t.Errorf("At(0x0800)[0].Type = %v, want %v", anns[0].Type, AnnotationInline)
-	}
-	if anns[0].Author != AuthorUser {
-		t.Errorf("At(0x0800)[0].Author = %v, want %v", anns[0].Author, AuthorUser)
+	if anns[0].Author != author.User {
+		t.Errorf("At(0x0800)[0].Author = %v, want %v", anns[0].Author, author.User)
 	}
 
 	// Set assistant annotation (different author, so both should exist)
-	table.Set(0x0800, AnnotationHeadline, "Main entry point", AuthorAssistant)
+	table.Set(0x0800, "Main entry point", author.Assistant)
 
 	anns = table.At(0x0800)
 	if len(anns) != 2 {
@@ -43,10 +42,10 @@ func TestAnnotationTableOverwrite(t *testing.T) {
 	table := NewTable()
 
 	// Set user annotation
-	table.Set(0x0800, AnnotationInline, "First", AuthorUser)
+	table.Set(0x0800, "First", author.User)
 
 	// Overwrite with same author - should replace
-	table.Set(0x0800, AnnotationHeadline, "Second", AuthorUser)
+	table.Set(0x0800, "Second", author.User)
 
 	anns := table.At(0x0800)
 	if len(anns) != 1 {
@@ -55,34 +54,31 @@ func TestAnnotationTableOverwrite(t *testing.T) {
 	if anns[0].Comment != "Second" {
 		t.Errorf("At(0x0800)[0].Comment = %q, want %q", anns[0].Comment, "Second")
 	}
-	if anns[0].Type != AnnotationHeadline {
-		t.Errorf("At(0x0800)[0].Type = %v, want %v", anns[0].Type, AnnotationHeadline)
-	}
 }
 
 func TestAnnotationTableGet(t *testing.T) {
 	table := NewTable()
 
 	// Get from empty table
-	if ann := table.Get(0x0800, AuthorUser); ann != nil {
-		t.Errorf("Get(0x0800, AuthorUser) on empty table = %v, want nil", ann)
+	if ann := table.Get(0x0800, author.User); ann != nil {
+		t.Errorf("Get(0x0800, User) on empty table = %v, want nil", ann)
 	}
 
 	// Set and get
-	table.Set(0x0800, AnnotationInline, "User comment", AuthorUser)
-	table.Set(0x0800, AnnotationHeadline, "Assistant comment", AuthorAssistant)
+	table.Set(0x0800, "User comment", author.User)
+	table.Set(0x0800, "Assistant comment", author.Assistant)
 
-	userAnn := table.Get(0x0800, AuthorUser)
+	userAnn := table.Get(0x0800, author.User)
 	if userAnn == nil {
-		t.Fatal("Get(0x0800, AuthorUser) = nil, want annotation")
+		t.Fatal("Get(0x0800, User) = nil, want annotation")
 	}
 	if userAnn.Comment != "User comment" {
 		t.Errorf("userAnn.Comment = %q, want %q", userAnn.Comment, "User comment")
 	}
 
-	assistantAnn := table.Get(0x0800, AuthorAssistant)
+	assistantAnn := table.Get(0x0800, author.Assistant)
 	if assistantAnn == nil {
-		t.Fatal("Get(0x0800, AuthorAssistant) = nil, want annotation")
+		t.Fatal("Get(0x0800, Assistant) = nil, want annotation")
 	}
 	if assistantAnn.Comment != "Assistant comment" {
 		t.Errorf("assistantAnn.Comment = %q, want %q", assistantAnn.Comment, "Assistant comment")
@@ -92,19 +88,19 @@ func TestAnnotationTableGet(t *testing.T) {
 func TestAnnotationTableRemove(t *testing.T) {
 	table := NewTable()
 
-	table.Set(0x0800, AnnotationInline, "User", AuthorUser)
-	table.Set(0x0800, AnnotationInline, "Assistant", AuthorAssistant)
+	table.Set(0x0800, "User", author.User)
+	table.Set(0x0800, "Assistant", author.Assistant)
 
 	// Remove user annotation
-	table.Remove(0x0800, AuthorUser)
+	table.Remove(0x0800, author.User)
 
-	if ann := table.Get(0x0800, AuthorUser); ann != nil {
-		t.Errorf("Get after Remove(AuthorUser) = %v, want nil", ann)
+	if ann := table.Get(0x0800, author.User); ann != nil {
+		t.Errorf("Get after Remove(User) = %v, want nil", ann)
 	}
 
 	// Assistant should still exist
-	if ann := table.Get(0x0800, AuthorAssistant); ann == nil {
-		t.Error("Get(AuthorAssistant) after Remove(AuthorUser) = nil, want annotation")
+	if ann := table.Get(0x0800, author.Assistant); ann == nil {
+		t.Error("Get(Assistant) after Remove(User) = nil, want annotation")
 	}
 
 	anns := table.At(0x0800)
@@ -113,7 +109,7 @@ func TestAnnotationTableRemove(t *testing.T) {
 	}
 
 	// Remove assistant (should clean up map entry)
-	table.Remove(0x0800, AuthorAssistant)
+	table.Remove(0x0800, author.Assistant)
 
 	anns = table.At(0x0800)
 	if len(anns) != 0 {
@@ -121,14 +117,14 @@ func TestAnnotationTableRemove(t *testing.T) {
 	}
 
 	// Remove from nonexistent address should not panic
-	table.Remove(0x0900, AuthorUser)
+	table.Remove(0x0900, author.User)
 }
 
 func TestAnnotationTableClear(t *testing.T) {
 	table := NewTable()
 
-	table.Set(0x0800, AnnotationInline, "User", AuthorUser)
-	table.Set(0x0800, AnnotationInline, "Assistant", AuthorAssistant)
+	table.Set(0x0800, "User", author.User)
+	table.Set(0x0800, "Assistant", author.Assistant)
 
 	table.Clear(0x0800)
 
@@ -141,56 +137,12 @@ func TestAnnotationTableClear(t *testing.T) {
 	table.Clear(0x0900)
 }
 
-func TestAuthorString(t *testing.T) {
-	tests := []struct {
-		author Author
-		want   string
-	}{
-		{AuthorUser, "user"},
-		{AuthorAssistant, "assistant"},
-		{Author(99), "unknown"},
-	}
-
-	for _, tc := range tests {
-		got := tc.author.String()
-		if got != tc.want {
-			t.Errorf("Author(%d).String() = %q, want %q", tc.author, got, tc.want)
-		}
-	}
-}
-
-func TestParseAuthor(t *testing.T) {
-	tests := []struct {
-		input   string
-		want    Author
-		wantErr bool
-	}{
-		{"user", AuthorUser, false},
-		{"assistant", AuthorAssistant, false},
-		{"User", 0, true},
-		{"ASSISTANT", 0, true},
-		{"auto", 0, true},
-		{"", 0, true},
-	}
-
-	for _, tc := range tests {
-		got, err := ParseAuthor(tc.input)
-		if (err != nil) != tc.wantErr {
-			t.Errorf("ParseAuthor(%q) error = %v, wantErr = %v", tc.input, err, tc.wantErr)
-			continue
-		}
-		if !tc.wantErr && got != tc.want {
-			t.Errorf("ParseAuthor(%q) = %v, want %v", tc.input, got, tc.want)
-		}
-	}
-}
-
 func TestAnnotationTableAll(t *testing.T) {
 	table := NewTable()
 
-	table.Set(0x0800, AnnotationInline, "User 0800", AuthorUser)
-	table.Set(0x0801, AnnotationHeadline, "Assistant 0801", AuthorAssistant)
-	table.Set(0x0801, AnnotationInline, "User 0801", AuthorUser)
+	table.Set(0x0800, "User 0800", author.User)
+	table.Set(0x0801, "Assistant 0801", author.Assistant)
+	table.Set(0x0801, "User 0801", author.User)
 
 	all := table.All()
 
@@ -225,46 +177,39 @@ func TestAnnotationTableExtend(t *testing.T) {
 	table := NewTable()
 
 	// Extend on empty address should create new annotation
-	table.Extend(0x0800, AnnotationInline, "First line", AuthorUser)
+	table.Extend(0x0800, "First line", author.User)
 
-	ann := table.Get(0x0800, AuthorUser)
+	ann := table.Get(0x0800, author.User)
 	if ann == nil {
-		t.Fatal("Get(0x0800, AuthorUser) after Extend = nil, want annotation")
+		t.Fatal("Get(0x0800, User) after Extend = nil, want annotation")
 	}
 	if ann.Comment != "First line" {
 		t.Errorf("ann.Comment = %q, want %q", ann.Comment, "First line")
 	}
-	if ann.Type != AnnotationInline {
-		t.Errorf("ann.Type = %v, want %v", ann.Type, AnnotationInline)
-	}
 
 	// Extend existing annotation should append with newline
-	table.Extend(0x0800, AnnotationHeadline, "Second line", AuthorUser)
+	table.Extend(0x0800, "Second line", author.User)
 
-	ann = table.Get(0x0800, AuthorUser)
+	ann = table.Get(0x0800, author.User)
 	if ann == nil {
-		t.Fatal("Get(0x0800, AuthorUser) after second Extend = nil, want annotation")
+		t.Fatal("Get(0x0800, User) after second Extend = nil, want annotation")
 	}
 	want := "First line\nSecond line"
 	if ann.Comment != want {
 		t.Errorf("ann.Comment = %q, want %q", ann.Comment, want)
 	}
-	// New type should take precedence
-	if ann.Type != AnnotationHeadline {
-		t.Errorf("ann.Type = %v, want %v (new type takes precedence)", ann.Type, AnnotationHeadline)
-	}
 
 	// Extend should not affect other authors
-	table.Extend(0x0800, AnnotationInline, "Assistant note", AuthorAssistant)
+	table.Extend(0x0800, "Assistant note", author.Assistant)
 
-	userAnn := table.Get(0x0800, AuthorUser)
+	userAnn := table.Get(0x0800, author.User)
 	if userAnn.Comment != want {
 		t.Errorf("User annotation changed after extending assistant: %q", userAnn.Comment)
 	}
 
-	assistantAnn := table.Get(0x0800, AuthorAssistant)
+	assistantAnn := table.Get(0x0800, author.Assistant)
 	if assistantAnn == nil {
-		t.Fatal("Get(0x0800, AuthorAssistant) = nil, want annotation")
+		t.Fatal("Get(0x0800, Assistant) = nil, want annotation")
 	}
 	if assistantAnn.Comment != "Assistant note" {
 		t.Errorf("assistantAnn.Comment = %q, want %q", assistantAnn.Comment, "Assistant note")
@@ -275,13 +220,13 @@ func TestAnnotationTableExtendMultiple(t *testing.T) {
 	table := NewTable()
 
 	// Extend multiple times
-	table.Extend(0x0800, AnnotationInline, "Line 1", AuthorUser)
-	table.Extend(0x0800, AnnotationInline, "Line 2", AuthorUser)
-	table.Extend(0x0800, AnnotationInline, "Line 3", AuthorUser)
+	table.Extend(0x0800, "Line 1", author.User)
+	table.Extend(0x0800, "Line 2", author.User)
+	table.Extend(0x0800, "Line 3", author.User)
 
-	ann := table.Get(0x0800, AuthorUser)
+	ann := table.Get(0x0800, author.User)
 	if ann == nil {
-		t.Fatal("Get(0x0800, AuthorUser) = nil, want annotation")
+		t.Fatal("Get(0x0800, User) = nil, want annotation")
 	}
 
 	want := "Line 1\nLine 2\nLine 3"

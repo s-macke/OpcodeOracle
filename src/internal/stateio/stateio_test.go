@@ -6,7 +6,7 @@ import (
 	"testing"
 	"time"
 
-	"opcodeoracle/internal/annotations"
+	"opcodeoracle/internal/author"
 	"opcodeoracle/internal/regions"
 	"opcodeoracle/internal/state"
 	"opcodeoracle/internal/symbols"
@@ -31,8 +31,8 @@ func TestSaveLoad(t *testing.T) {
 		Source: symbols.SourceAuto,
 	})
 
-	original.Annotations.Set(0x0801, annotations.AnnotationInline, "Entry point", annotations.AuthorUser)
-	original.Annotations.Set(0x0801, annotations.AnnotationHeadline, "Program Start", annotations.AuthorAssistant)
+	original.Annotations.Set(0x0801, "Entry point", author.User)
+	original.Headlines.Set(0x0801, "Program Start", author.Assistant)
 
 	original.Regions.Set(0x0801, 0x0900, regions.RegionCode)
 
@@ -47,9 +47,9 @@ func TestSaveLoad(t *testing.T) {
 		t.Fatalf("Load() error = %v", err)
 	}
 
-	// Verify
-	if loaded.Version != original.Version {
-		t.Errorf("Version = %q, want %q", loaded.Version, original.Version)
+	// Verify version is updated to 1.1
+	if loaded.Version != "1.1" {
+		t.Errorf("Version = %q, want %q", loaded.Version, "1.1")
 	}
 	if loaded.Metadata.SourceFile != original.Metadata.SourceFile {
 		t.Errorf("SourceFile = %q, want %q", loaded.Metadata.SourceFile, original.Metadata.SourceFile)
@@ -75,24 +75,30 @@ func TestSaveLoad(t *testing.T) {
 		t.Errorf("Symbol name = %q, want %q", syms[0].Name, "start")
 	}
 
-	// Check annotations - should have 2 (one user, one assistant)
+	// Check annotations (inline only)
 	anns := loaded.Annotations.At(0x0801)
-	if len(anns) != 2 {
-		t.Errorf("Annotations at 0x0801 = %d, want 2", len(anns))
+	if len(anns) != 1 {
+		t.Errorf("Annotations at 0x0801 = %d, want 1", len(anns))
 	}
 
-	userAnn := loaded.Annotations.Get(0x0801, annotations.AuthorUser)
+	userAnn := loaded.Annotations.Get(0x0801, author.User)
 	if userAnn == nil {
 		t.Error("User annotation at 0x0801 is nil")
 	} else if userAnn.Comment != "Entry point" {
 		t.Errorf("User annotation comment = %q, want %q", userAnn.Comment, "Entry point")
 	}
 
-	assistantAnn := loaded.Annotations.Get(0x0801, annotations.AuthorAssistant)
-	if assistantAnn == nil {
-		t.Error("Assistant annotation at 0x0801 is nil")
-	} else if assistantAnn.Comment != "Program Start" {
-		t.Errorf("Assistant annotation comment = %q, want %q", assistantAnn.Comment, "Program Start")
+	// Check headlines
+	hdls := loaded.Headlines.At(0x0801)
+	if len(hdls) != 1 {
+		t.Errorf("Headlines at 0x0801 = %d, want 1", len(hdls))
+	}
+
+	assistantHdl := loaded.Headlines.Get(0x0801, author.Assistant)
+	if assistantHdl == nil {
+		t.Error("Assistant headline at 0x0801 is nil")
+	} else if assistantHdl.Comment != "Program Start" {
+		t.Errorf("Assistant headline comment = %q, want %q", assistantHdl.Comment, "Program Start")
 	}
 
 	// Check regions
@@ -109,9 +115,9 @@ func TestLoadMinimal(t *testing.T) {
 	tmpDir := t.TempDir()
 	path := filepath.Join(tmpDir, "minimal.orc")
 
-	// Write minimal JSON
+	// Write minimal JSON (new format v1.1)
 	content := `{
-  "version": "1.0",
+  "version": "1.1",
   "metadata": {
     "created": "2025-01-22T10:30:00Z",
     "modified": "2025-01-22T10:30:00Z"
@@ -131,8 +137,8 @@ func TestLoadMinimal(t *testing.T) {
 		t.Fatalf("Load() error = %v", err)
 	}
 
-	if s.Version != "1.0" {
-		t.Errorf("Version = %q, want %q", s.Version, "1.0")
+	if s.Version != "1.1" {
+		t.Errorf("Version = %q, want %q", s.Version, "1.1")
 	}
 	if len(s.Binary.Data) != 5 {
 		t.Errorf("Binary.Data length = %d, want 5", len(s.Binary.Data))
@@ -151,12 +157,12 @@ func TestLoadMinimal(t *testing.T) {
 	}
 }
 
-func TestLoadFull(t *testing.T) {
+func TestLoadNewFormat(t *testing.T) {
 	tmpDir := t.TempDir()
-	path := filepath.Join(tmpDir, "full.orc")
+	path := filepath.Join(tmpDir, "new_format.orc")
 
 	content := `{
-  "version": "1.0",
+  "version": "1.1",
   "metadata": {
     "created": "2025-01-22T10:30:00Z",
     "modified": "2025-01-22T14:45:00Z",
@@ -178,8 +184,12 @@ func TestLoadFull(t *testing.T) {
   },
   "annotations": {
     "0x0801": {
-      "user": {"type": "inline", "comment": "Program entry"},
-      "assistant": {"type": "headline", "comment": "Main section"}
+      "user": {"comment": "Program entry"}
+    }
+  },
+  "headlines": {
+    "0x0801": {
+      "assistant": {"comment": "Main section"}
     }
   },
   "regions": [
@@ -214,20 +224,16 @@ func TestLoadFull(t *testing.T) {
 		t.Errorf("Symbols at 0xD020 = %v, want [BORDER]", syms)
 	}
 
-	// Check annotations
-	anns := s.Annotations.At(0x0801)
-	if len(anns) != 2 {
-		t.Errorf("Annotations at 0x0801 length = %d, want 2", len(anns))
-	}
-
-	userAnn := s.Annotations.Get(0x0801, annotations.AuthorUser)
+	// Check annotations (inline)
+	userAnn := s.Annotations.Get(0x0801, author.User)
 	if userAnn == nil || userAnn.Comment != "Program entry" {
 		t.Errorf("User annotation = %v, want 'Program entry'", userAnn)
 	}
 
-	assistantAnn := s.Annotations.Get(0x0801, annotations.AuthorAssistant)
-	if assistantAnn == nil || assistantAnn.Comment != "Main section" {
-		t.Errorf("Assistant annotation = %v, want 'Main section'", assistantAnn)
+	// Check headlines
+	assistantHdl := s.Headlines.Get(0x0801, author.Assistant)
+	if assistantHdl == nil || assistantHdl.Comment != "Main section" {
+		t.Errorf("Assistant headline = %v, want 'Main section'", assistantHdl)
 	}
 
 	// Check regions
@@ -285,7 +291,7 @@ func TestLoadMissingRequired(t *testing.T) {
 		{
 			name: "missing created",
 			content: `{
-  "version": "1.0",
+  "version": "1.1",
   "metadata": {"modified": "2025-01-22T10:30:00Z"},
   "binary": {"data": [169], "origin": "0x0801"},
   "entryPoints": ["0x0801"]
@@ -294,7 +300,7 @@ func TestLoadMissingRequired(t *testing.T) {
 		{
 			name: "missing binary data",
 			content: `{
-  "version": "1.0",
+  "version": "1.1",
   "metadata": {"created": "2025-01-22T10:30:00Z", "modified": "2025-01-22T10:30:00Z"},
   "binary": {"origin": "0x0801"},
   "entryPoints": ["0x0801"]
@@ -303,7 +309,7 @@ func TestLoadMissingRequired(t *testing.T) {
 		{
 			name: "missing entry points",
 			content: `{
-  "version": "1.0",
+  "version": "1.1",
   "metadata": {"created": "2025-01-22T10:30:00Z", "modified": "2025-01-22T10:30:00Z"},
   "binary": {"data": [169], "origin": "0x0801"}
 }`,
@@ -408,7 +414,7 @@ func TestLoadAnnotationsOnlyUser(t *testing.T) {
 	path := filepath.Join(tmpDir, "user_only.orc")
 
 	content := `{
-  "version": "1.0",
+  "version": "1.1",
   "metadata": {
     "created": "2025-01-22T10:30:00Z",
     "modified": "2025-01-22T10:30:00Z"
@@ -420,7 +426,7 @@ func TestLoadAnnotationsOnlyUser(t *testing.T) {
   "entryPoints": ["0x0801"],
   "annotations": {
     "0x0801": {
-      "user": {"type": "inline", "comment": "User only comment"}
+      "user": {"comment": "User only comment"}
     }
   }
 }`
@@ -438,13 +444,68 @@ func TestLoadAnnotationsOnlyUser(t *testing.T) {
 		t.Errorf("Annotations at 0x0801 = %d, want 1", len(anns))
 	}
 
-	userAnn := s.Annotations.Get(0x0801, annotations.AuthorUser)
+	userAnn := s.Annotations.Get(0x0801, author.User)
 	if userAnn == nil || userAnn.Comment != "User only comment" {
 		t.Errorf("User annotation = %v, want 'User only comment'", userAnn)
 	}
 
-	assistantAnn := s.Annotations.Get(0x0801, annotations.AuthorAssistant)
+	assistantAnn := s.Annotations.Get(0x0801, author.Assistant)
 	if assistantAnn != nil {
 		t.Errorf("Assistant annotation = %v, want nil", assistantAnn)
 	}
+}
+
+func TestSaveNewFormatStructure(t *testing.T) {
+	tmpDir := t.TempDir()
+	path := filepath.Join(tmpDir, "test.orc")
+
+	// Create state with both annotations and headlines
+	s := state.NewState([]byte{0xA9, 0x00}, 0x0801, []uint16{0x0801}, "test.prg")
+	s.Annotations.Set(0x0801, "Inline comment", author.User)
+	s.Headlines.Set(0x0801, "Section header", author.Assistant)
+
+	if err := Save(s, path); err != nil {
+		t.Fatalf("Save() error = %v", err)
+	}
+
+	// Read raw JSON to verify structure
+	data, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatalf("ReadFile() error = %v", err)
+	}
+
+	content := string(data)
+
+	// Check version is 1.1
+	if !contains(content, `"version": "1.1"`) {
+		t.Error("JSON should contain version 1.1")
+	}
+
+	// Check annotations section exists
+	if !contains(content, `"annotations"`) {
+		t.Error("JSON should contain annotations key")
+	}
+
+	// Check headlines section exists
+	if !contains(content, `"headlines"`) {
+		t.Error("JSON should contain headlines key")
+	}
+
+	// Verify annotations don't have type field
+	if contains(content, `"type": "inline"`) || contains(content, `"type": "headline"`) {
+		t.Error("New format should not have type field in annotations")
+	}
+}
+
+func contains(s, substr string) bool {
+	return len(s) >= len(substr) && (s == substr || len(s) > 0 && containsHelper(s, substr))
+}
+
+func containsHelper(s, substr string) bool {
+	for i := 0; i <= len(s)-len(substr); i++ {
+		if s[i:i+len(substr)] == substr {
+			return true
+		}
+	}
+	return false
 }

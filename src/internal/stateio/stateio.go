@@ -31,7 +31,7 @@ func Load(path string) (*state.State, error) {
 	if js.Version == "" {
 		return nil, fmt.Errorf("%w: version", ErrMissingRequired)
 	}
-	if js.Version != "1.0" {
+	if js.Version != "1.1" {
 		return nil, fmt.Errorf("%w: %s", ErrUnsupportedVersion, js.Version)
 	}
 

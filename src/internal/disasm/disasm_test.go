@@ -6,7 +6,7 @@ import (
 	"strings"
 	"testing"
 
-	"opcodeoracle/internal/annotations"
+	"opcodeoracle/internal/author"
 	"opcodeoracle/internal/regions"
 	"opcodeoracle/internal/state"
 	"opcodeoracle/internal/stateio"
@@ -185,7 +185,7 @@ func TestDisassembleWithAnnotations(t *testing.T) {
 	data := []byte{0xA9, 0x00, 0x60}
 	s := state.NewState(data, 0x0800, nil, "test.prg")
 	s.Regions.Set(0x0800, 0x0802, regions.RegionCode)
-	s.Annotations.Set(0x0800, annotations.AnnotationInline, "Load zero", annotations.AuthorUser)
+	s.Annotations.Set(0x0800, "Load zero", author.User)
 
 	d := NewDisassembler(s, nil)
 	output, err := d.Disassemble(0x0800, 0x0803)
@@ -199,11 +199,11 @@ func TestDisassembleWithAnnotations(t *testing.T) {
 }
 
 func TestDisassembleWithHeadline(t *testing.T) {
-	// Create state with headline annotation
+	// Create state with headline
 	data := []byte{0xA9, 0x00, 0x60}
 	s := state.NewState(data, 0x0800, nil, "test.prg")
 	s.Regions.Set(0x0800, 0x0802, regions.RegionCode)
-	s.Annotations.Set(0x0800, annotations.AnnotationHeadline, "Main entry point", annotations.AuthorUser)
+	s.Headlines.Set(0x0800, "Main entry point", author.User)
 
 	d := NewDisassembler(s, nil)
 	output, err := d.Disassemble(0x0800, 0x0803)
@@ -504,8 +504,8 @@ func TestDisassembleMultipleInlineAnnotations(t *testing.T) {
 	s := state.NewState(data, 0x0800, nil, "test.prg")
 	s.Regions.Set(0x0800, 0x0801, regions.RegionCode)
 	// Now we can only have one annotation per author, so use both authors
-	s.Annotations.Set(0x0800, annotations.AnnotationInline, "First comment", annotations.AuthorUser)
-	s.Annotations.Set(0x0800, annotations.AnnotationInline, "Second comment", annotations.AuthorAssistant)
+	s.Annotations.Set(0x0800, "First comment", author.User)
+	s.Annotations.Set(0x0800, "Second comment", author.Assistant)
 
 	d := NewDisassembler(s, nil)
 	output, err := d.Disassemble(0x0800, 0x0802)

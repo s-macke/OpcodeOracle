@@ -7,14 +7,15 @@ import (
 	"time"
 
 	"opcodeoracle/internal/annotations"
+	"opcodeoracle/internal/author"
 	"opcodeoracle/internal/binary"
+	"opcodeoracle/internal/headlines"
 	"opcodeoracle/internal/regions"
 	"opcodeoracle/internal/state"
 	"opcodeoracle/internal/symbols"
 	"opcodeoracle/internal/xrefs"
 )
 
-// jsonState is the JSON representation of State.
 type jsonState struct {
 	Version     string                             `json:"version"`
 	Metadata    jsonMetadata                       `json:"metadata"`
@@ -22,6 +23,7 @@ type jsonState struct {
 	EntryPoints []string                           `json:"entryPoints"`
 	Symbols     map[string][]jsonSymbol            `json:"symbols,omitempty"`
 	Annotations map[string]*jsonAddressAnnotations `json:"annotations,omitempty"`
+	Headlines   map[string]*jsonAddressHeadlines   `json:"headlines,omitempty"`
 	Regions     []jsonRegion                       `json:"regions,omitempty"`
 }
 
@@ -44,13 +46,21 @@ type jsonSymbol struct {
 }
 
 type jsonAnnotation struct {
-	Type    string `json:"type"`
 	Comment string `json:"comment"`
 }
 
 type jsonAddressAnnotations struct {
 	User      *jsonAnnotation `json:"user,omitempty"`
 	Assistant *jsonAnnotation `json:"assistant,omitempty"`
+}
+
+type jsonAddressHeadlines struct {
+	User      *jsonHeadline `json:"user,omitempty"`
+	Assistant *jsonHeadline `json:"assistant,omitempty"`
+}
+
+type jsonHeadline struct {
+	Comment string `json:"comment"`
 }
 
 type jsonRegion struct {
@@ -78,7 +88,7 @@ func formatHex(v uint16) string {
 // stateToJSON converts a State to its JSON representation.
 func stateToJSON(s *state.State) *jsonState {
 	js := &jsonState{
-		Version: s.Version,
+		Version: "1.0",
 		Metadata: jsonMetadata{
 			Created:     s.Metadata.Created.UTC().Format(time.RFC3339),
 			Modified:    s.Metadata.Modified.UTC().Format(time.RFC3339),
@@ -125,18 +135,41 @@ func stateToJSON(s *state.State) *jsonState {
 
 				if addrAnns.User != nil {
 					jsonAddrAnns.User = &jsonAnnotation{
-						Type:    annotationTypeToString(addrAnns.User.Type),
 						Comment: addrAnns.User.Comment,
 					}
 				}
 				if addrAnns.Assistant != nil {
 					jsonAddrAnns.Assistant = &jsonAnnotation{
-						Type:    annotationTypeToString(addrAnns.Assistant.Type),
 						Comment: addrAnns.Assistant.Comment,
 					}
 				}
 
 				js.Annotations[addrStr] = jsonAddrAnns
+			}
+		}
+	}
+
+	// Convert headlines
+	if s.Headlines != nil {
+		allHdls := s.Headlines.All()
+		if len(allHdls) > 0 {
+			js.Headlines = make(map[string]*jsonAddressHeadlines)
+			for addr, addrHdls := range allHdls {
+				addrStr := formatHex(addr)
+				jsonAddrHdls := &jsonAddressHeadlines{}
+
+				if addrHdls.User != nil {
+					jsonAddrHdls.User = &jsonHeadline{
+						Comment: addrHdls.User.Comment,
+					}
+				}
+				if addrHdls.Assistant != nil {
+					jsonAddrHdls.Assistant = &jsonHeadline{
+						Comment: addrHdls.Assistant.Comment,
+					}
+				}
+
+				js.Headlines[addrStr] = jsonAddrHdls
 			}
 		}
 	}
@@ -157,28 +190,6 @@ func stateToJSON(s *state.State) *jsonState {
 	}
 
 	return js
-}
-
-func annotationTypeToString(t annotations.AnnotationType) string {
-	switch t {
-	case annotations.AnnotationInline:
-		return "inline"
-	case annotations.AnnotationHeadline:
-		return "headline"
-	default:
-		return "inline"
-	}
-}
-
-func stringToAnnotationType(s string) (annotations.AnnotationType, error) {
-	switch s {
-	case "inline":
-		return annotations.AnnotationInline, nil
-	case "headline":
-		return annotations.AnnotationHeadline, nil
-	default:
-		return 0, fmt.Errorf("invalid annotation type %q", s)
-	}
 }
 
 // jsonToState converts a JSON representation to a State.
@@ -212,6 +223,7 @@ func jsonToState(js *jsonState) (*state.State, error) {
 		EntryPoints: make([]uint16, len(js.EntryPoints)),
 		Symbols:     symbols.NewTable(),
 		Annotations: annotations.NewTable(),
+		Headlines:   headlines.NewTable(),
 		Regions:     regions.NewTable(),
 		XRefs:       xrefs.NewTable(),
 	}
@@ -247,19 +259,25 @@ func jsonToState(js *jsonState) (*state.State, error) {
 		}
 
 		if addrAnns.User != nil {
-			annType, err := stringToAnnotationType(addrAnns.User.Type)
-			if err != nil {
-				return nil, fmt.Errorf("at address %s user: %w", addrStr, err)
-			}
-			s.Annotations.Set(addr, annType, addrAnns.User.Comment, annotations.AuthorUser)
+			s.Annotations.Set(addr, addrAnns.User.Comment, author.User)
+		}
+		if addrAnns.Assistant != nil {
+			s.Annotations.Set(addr, addrAnns.Assistant.Comment, author.Assistant)
+		}
+	}
+
+	// Convert headlines
+	for addrStr, addrHdls := range js.Headlines {
+		addr, err := parseHex(addrStr)
+		if err != nil {
+			return nil, fmt.Errorf("invalid headline address: %w", err)
 		}
 
-		if addrAnns.Assistant != nil {
-			annType, err := stringToAnnotationType(addrAnns.Assistant.Type)
-			if err != nil {
-				return nil, fmt.Errorf("at address %s assistant: %w", addrStr, err)
-			}
-			s.Annotations.Set(addr, annType, addrAnns.Assistant.Comment, annotations.AuthorAssistant)
+		if addrHdls.User != nil {
+			s.Headlines.Set(addr, addrHdls.User.Comment, author.User)
+		}
+		if addrHdls.Assistant != nil {
+			s.Headlines.Set(addr, addrHdls.Assistant.Comment, author.Assistant)
 		}
 	}
 

@@ -5,6 +5,7 @@ import (
 
 	"opcodeoracle/internal/annotations"
 	"opcodeoracle/internal/binary"
+	"opcodeoracle/internal/headlines"
 	"opcodeoracle/internal/regions"
 	"opcodeoracle/internal/symbols"
 	"opcodeoracle/internal/xrefs"
@@ -17,6 +18,7 @@ type State struct {
 	EntryPoints []uint16
 	Symbols     *symbols.Table
 	Annotations *annotations.Table
+	Headlines   *headlines.Table
 	Regions     *regions.Table
 	XRefs       *xrefs.Table // Not persisted, computed during disassembly
 }

@@ -6,8 +6,8 @@ import (
 	"strings"
 
 	"opcodeoracle/internal/analysis"
-	"opcodeoracle/internal/annotations"
 	"opcodeoracle/internal/asm"
+	"opcodeoracle/internal/headlines"
 	"opcodeoracle/internal/regions"
 	"opcodeoracle/internal/state"
 	"opcodeoracle/internal/symbols"
@@ -107,16 +107,16 @@ func (d *disassembler) formatCodeAt(addr uint16, needsBlankLine *bool) (string, 
 		return "", 0, &IllegalOpcodeError{Address: addr, Opcode: opcode}
 	}
 
-	// Now we know the size - collect all annotations within this instruction
+	// Now we know the size - collect all headlines within this instruction
 	instrEnd := addr + uint16(def.Size)
 
 	// Output headline annotations (from all bytes of instruction)
-	headlines := d.getHeadlineAnnotations(addr, instrEnd)
-	if len(headlines) > 0 {
+	hdls := d.getHeadlines(addr, instrEnd)
+	if len(hdls) > 0 {
 		if *needsBlankLine {
 			sb.WriteString("\n")
 		}
-		sb.WriteString(d.formatHeadlines(headlines))
+		sb.WriteString(d.formatHeadlines(hdls))
 		*needsBlankLine = false
 	}
 
@@ -241,37 +241,39 @@ func calculateBranchTarget(pc uint16, operand byte) uint16 {
 	return nextPC + uint16(operand)
 }
 
-// getHeadlineAnnotations returns headline annotations in the address range [start, end).
-func (d *disassembler) getHeadlineAnnotations(start, end uint16) []annotations.Annotation {
-	var headlines []annotations.Annotation
-	for addr := start; addr < end; addr++ {
-		for _, ann := range d.state.Annotations.At(addr) {
-			if ann.Type == annotations.AnnotationHeadline {
-				headlines = append(headlines, ann)
-			}
-		}
+// getHeadlines returns headlines in the address range [start, end).
+func (d *disassembler) getHeadlines(start, end uint16) []headlines.Headline {
+	var result []headlines.Headline
+	if d.state.Headlines == nil {
+		return result
 	}
-	return headlines
+	for addr := start; addr < end; addr++ {
+		result = append(result, d.state.Headlines.At(addr)...)
+	}
+	return result
+}
+
+// inlineAnnotation is a simple struct to hold inline annotation data for disasm output.
+type inlineAnnotation struct {
+	Comment string
 }
 
 // getInlineAnnotations returns inline annotations in the address range [start, end).
-func (d *disassembler) getInlineAnnotations(start, end uint16) []annotations.Annotation {
-	var inlines []annotations.Annotation
+func (d *disassembler) getInlineAnnotations(start, end uint16) []inlineAnnotation {
+	var inlines []inlineAnnotation
 	for addr := start; addr < end; addr++ {
 		for _, ann := range d.state.Annotations.At(addr) {
-			if ann.Type == annotations.AnnotationInline {
-				inlines = append(inlines, ann)
-			}
+			inlines = append(inlines, inlineAnnotation{Comment: ann.Comment})
 		}
 	}
 	return inlines
 }
 
 // formatHeadlines formats headline annotations as a block comment.
-func (d *disassembler) formatHeadlines(headlines []annotations.Annotation) string {
+func (d *disassembler) formatHeadlines(hdls []headlines.Headline) string {
 	var sb strings.Builder
 	sb.WriteString("; --------------------------------------------------------\n")
-	for _, h := range headlines {
+	for _, h := range hdls {
 		sb.WriteString("; " + h.Comment + "\n")
 	}
 	sb.WriteString("; --------------------------------------------------------\n")
