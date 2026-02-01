@@ -24,7 +24,7 @@ func TestDisassembleCode(t *testing.T) {
 	s := state.NewState(data, 0x0800, nil, "test.prg")
 	s.Regions.Set(0x0800, 0x0805, regions.RegionCode)
 
-	d := NewDisassembler(s)
+	d := NewDisassembler(s, nil)
 	output, err := d.Disassemble(0x0800, 0x0806)
 	if err != nil {
 		t.Fatalf("Disassemble failed: %v", err)
@@ -61,7 +61,7 @@ func TestDisassembleWithLabels(t *testing.T) {
 		Source: symbols.SourceUser,
 	})
 
-	d := NewDisassembler(s)
+	d := NewDisassembler(s, nil)
 	output, err := d.Disassemble(0x0800, 0x0803)
 	if err != nil {
 		t.Fatalf("Disassemble failed: %v", err)
@@ -91,7 +91,7 @@ func TestDisassembleBranch(t *testing.T) {
 		Source: symbols.SourceAuto,
 	})
 
-	d := NewDisassembler(s)
+	d := NewDisassembler(s, nil)
 	output, err := d.Disassemble(0x0800, 0x0805)
 	if err != nil {
 		t.Fatalf("Disassemble failed: %v", err)
@@ -117,7 +117,7 @@ func TestDisassembleBackwardsBranch(t *testing.T) {
 		Source: symbols.SourceUser,
 	})
 
-	d := NewDisassembler(s)
+	d := NewDisassembler(s, nil)
 	output, err := d.Disassemble(0x0800, 0x0803)
 	if err != nil {
 		t.Fatalf("Disassemble failed: %v", err)
@@ -134,7 +134,7 @@ func TestDisassembleData(t *testing.T) {
 	s := state.NewState(data, 0x0900, nil, "test.prg")
 	// Default is data region
 
-	d := NewDisassembler(s)
+	d := NewDisassembler(s, nil)
 	output, err := d.Disassemble(0x0900, 0x0906)
 	if err != nil {
 		t.Fatalf("Disassemble failed: %v", err)
@@ -167,7 +167,7 @@ func TestDisassembleDataWithSymbol(t *testing.T) {
 		Source: symbols.SourceUser,
 	})
 
-	d := NewDisassembler(s)
+	d := NewDisassembler(s, nil)
 	output, err := d.Disassemble(0x0900, 0x0903)
 	if err != nil {
 		t.Fatalf("Disassemble failed: %v", err)
@@ -188,7 +188,7 @@ func TestDisassembleWithAnnotations(t *testing.T) {
 	s.Regions.Set(0x0800, 0x0802, regions.RegionCode)
 	s.Annotations.Add(0x0800, annotations.AnnotationInline, "Load zero", "")
 
-	d := NewDisassembler(s)
+	d := NewDisassembler(s, nil)
 	output, err := d.Disassemble(0x0800, 0x0803)
 	if err != nil {
 		t.Fatalf("Disassemble failed: %v", err)
@@ -206,7 +206,7 @@ func TestDisassembleWithHeadline(t *testing.T) {
 	s.Regions.Set(0x0800, 0x0802, regions.RegionCode)
 	s.Annotations.Add(0x0800, annotations.AnnotationHeadline, "Main entry point", "")
 
-	d := NewDisassembler(s)
+	d := NewDisassembler(s, nil)
 	output, err := d.Disassemble(0x0800, 0x0803)
 	if err != nil {
 		t.Fatalf("Disassemble failed: %v", err)
@@ -226,7 +226,7 @@ func TestDisassembleIllegalOpcode(t *testing.T) {
 	s := state.NewState(data, 0x0800, nil, "test.prg")
 	s.Regions.Set(0x0800, 0x0800, regions.RegionCode)
 
-	d := NewDisassembler(s)
+	d := NewDisassembler(s, nil)
 	_, err := d.Disassemble(0x0800, 0x0801)
 
 	if err == nil {
@@ -250,11 +250,76 @@ func TestDisassembleIllegalOpcode(t *testing.T) {
 	}
 }
 
+func TestDisassembleMidInstruction(t *testing.T) {
+	// Create state with a 3-byte instruction: LDA $D020
+	data := []byte{
+		0xAD, 0x20, 0xD0, // LDA $D020
+		0x60, // RTS
+	}
+	s := state.NewState(data, 0x0800, nil, "test.prg")
+	s.Regions.Set(0x0800, 0x0803, regions.RegionCode)
+
+	// Create a mock boundaries implementation
+	boundaries := &mockBoundaries{
+		instructionAddrs: map[uint16]bool{0x0800: true, 0x0803: true},
+		operandAddrs:     map[uint16]bool{0x0801: true, 0x0802: true},
+	}
+
+	d := NewDisassembler(s, boundaries)
+
+	// Disassembling at instruction start should work
+	_, err := d.Disassemble(0x0800, 0x0804)
+	if err != nil {
+		t.Fatalf("Disassemble from instruction start failed: %v", err)
+	}
+
+	// Disassembling starting at operand byte should fail
+	_, err = d.Disassemble(0x0801, 0x0804)
+	if err == nil {
+		t.Fatal("Expected error for mid-instruction address")
+	}
+
+	var midErr *MidInstructionError
+	if !errors.As(err, &midErr) {
+		t.Fatalf("Expected MidInstructionError, got: %v", err)
+	}
+	if midErr.Address != 0x0801 {
+		t.Errorf("Expected address 0x0801, got: 0x%04X", midErr.Address)
+	}
+
+	// Check that it unwraps to ErrMidInstruction
+	if !errors.Is(err, ErrMidInstruction) {
+		t.Error("Error should unwrap to ErrMidInstruction")
+	}
+}
+
+// mockBoundaries implements analysis.InstructionBoundaries for testing.
+type mockBoundaries struct {
+	instructionAddrs map[uint16]bool
+	operandAddrs     map[uint16]bool
+}
+
+func (m *mockBoundaries) IsInstructionAt(addr uint16) bool {
+	return m.instructionAddrs[addr]
+}
+
+func (m *mockBoundaries) IsInstructionDataAt(addr uint16) bool {
+	return m.operandAddrs[addr]
+}
+
+func (m *mockBoundaries) InstructionAddresses() []uint16 {
+	addrs := make([]uint16, 0, len(m.instructionAddrs))
+	for addr := range m.instructionAddrs {
+		addrs = append(addrs, addr)
+	}
+	return addrs
+}
+
 func TestDisassembleAddressOutOfRange(t *testing.T) {
 	data := []byte{0xEA}
 	s := state.NewState(data, 0x0800, nil, "test.prg")
 
-	d := NewDisassembler(s)
+	d := NewDisassembler(s, nil)
 
 	// Test start address out of range
 	_, err := d.Disassemble(0x0700, 0x0701)
@@ -280,7 +345,7 @@ func TestDisassembleMixedRegions(t *testing.T) {
 	s.Regions.Set(0x0800, 0x0802, regions.RegionCode)
 	// 0x0803-0x0804 remains data
 
-	d := NewDisassembler(s)
+	d := NewDisassembler(s, nil)
 	output, err := d.Disassemble(0x0800, 0x0805)
 	if err != nil {
 		t.Fatalf("Disassemble failed: %v", err)
@@ -323,7 +388,7 @@ func TestDisassembleAllAddressingModes(t *testing.T) {
 			s := state.NewState(tc.data, 0x0800, nil, "test.prg")
 			s.Regions.Set(0x0800, 0x0800+uint16(len(tc.data))-1, regions.RegionCode)
 
-			d := NewDisassembler(s)
+			d := NewDisassembler(s, nil)
 			output, err := d.Disassemble(0x0800, 0x0800+uint16(len(tc.data)))
 			if err != nil {
 				t.Fatalf("Disassemble failed: %v", err)
@@ -390,7 +455,7 @@ func TestDisassembleEmptyRange(t *testing.T) {
 	data := []byte{0xEA}
 	s := state.NewState(data, 0x0800, nil, "test.prg")
 
-	d := NewDisassembler(s)
+	d := NewDisassembler(s, nil)
 	output, err := d.Disassemble(0x0800, 0x0800) // Empty range
 	if err != nil {
 		t.Fatalf("Disassemble failed: %v", err)
@@ -408,7 +473,7 @@ func TestDisassembleMultipleInlineAnnotations(t *testing.T) {
 	s.Annotations.Add(0x0800, annotations.AnnotationInline, "First comment", "")
 	s.Annotations.Add(0x0800, annotations.AnnotationInline, "Second comment", "")
 
-	d := NewDisassembler(s)
+	d := NewDisassembler(s, nil)
 	output, err := d.Disassemble(0x0800, 0x0802)
 	if err != nil {
 		t.Fatalf("Disassemble failed: %v", err)
@@ -450,7 +515,7 @@ func TestIntegrationWithStateFile(t *testing.T) {
 		t.Fatalf("Failed to load state: %v", err)
 	}
 
-	d := NewDisassembler(s)
+	d := NewDisassembler(s, nil)
 
 	// Disassemble a small range
 	start := s.Binary.Origin
