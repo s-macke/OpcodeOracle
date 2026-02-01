@@ -20,11 +20,11 @@ type Exporter struct {
 func NewExporter(s *state.State) *Exporter {
 	return &Exporter{
 		state:  s,
-		disasm: disasm.NewDisassembler(s),
+		disasm: disasm.NewDisassembler(s, nil),
 	}
 }
 
-// Export writes complete disassembly to a single file.
+// Export writes complete disassembly to a single file and exports the binary data.
 func (e *Exporter) Export(path string) error {
 	// Ensure parent directory exists
 	dir := filepath.Dir(path)
@@ -61,6 +61,28 @@ func (e *Exporter) Export(path string) error {
 
 	if err := os.WriteFile(path, []byte(sb.String()), 0644); err != nil {
 		return fmt.Errorf("writing file: %w", err)
+	}
+
+	// Write binary file
+	if err := e.exportBinary(path); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// exportBinary writes the raw binary data to a .bin file next to the .asm file.
+// The filename includes the origin address: Name_origin_0xXXXX.bin
+func (e *Exporter) exportBinary(asmPath string) error {
+	dir := filepath.Dir(asmPath)
+	base := filepath.Base(asmPath)
+	name := strings.TrimSuffix(base, filepath.Ext(base))
+
+	binName := fmt.Sprintf("%s_origin_0x%04X.bin", name, e.state.Binary.Origin)
+	binPath := filepath.Join(dir, binName)
+
+	if err := os.WriteFile(binPath, e.state.Binary.Data, 0644); err != nil {
+		return fmt.Errorf("writing binary file: %w", err)
 	}
 
 	return nil
