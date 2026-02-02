@@ -272,23 +272,25 @@ func TestDisassembleMidInstruction(t *testing.T) {
 		t.Fatalf("Disassemble from instruction start failed: %v", err)
 	}
 
-	// Disassembling starting at operand byte should fail
-	_, err = d.Disassemble(0x0801, 0x0804)
-	if err == nil {
-		t.Fatal("Expected error for mid-instruction address")
+	// Disassembling starting at operand byte should now succeed with warning
+	output, err := d.Disassemble(0x0801, 0x0804)
+	if err != nil {
+		t.Fatalf("Disassemble from mid-instruction should succeed: %v", err)
 	}
 
-	var midErr *MidInstructionError
-	if !errors.As(err, &midErr) {
-		t.Fatalf("Expected MidInstructionError, got: %v", err)
-	}
-	if midErr.Address != 0x0801 {
-		t.Errorf("Expected address 0x0801, got: 0x%04X", midErr.Address)
+	// Check output contains warning comment
+	if !strings.Contains(output, "; WARNING: mid-instruction byte at $0801") {
+		t.Errorf("Output should contain warning comment, got:\n%s", output)
 	}
 
-	// Check that it unwraps to ErrMidInstruction
-	if !errors.Is(err, ErrMidInstruction) {
-		t.Error("Error should unwrap to ErrMidInstruction")
+	// Check output contains .BYTE directive for the operand byte
+	if !strings.Contains(output, ".BYTE $20") {
+		t.Errorf("Output should contain .BYTE $20 for operand byte, got:\n%s", output)
+	}
+
+	// Check that it continues to disassemble the RTS
+	if !strings.Contains(output, "RTS") {
+		t.Errorf("Output should continue with RTS instruction, got:\n%s", output)
 	}
 }
 

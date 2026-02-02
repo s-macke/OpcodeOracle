@@ -91,7 +91,8 @@ func (d *disassembler) Disassemble(start, end uint16) (string, error) {
 func (d *disassembler) formatCodeAt(addr uint16, needsBlankLine *bool) (string, int, error) {
 	// Check if address is mid-instruction (operand byte)
 	if d.boundaries != nil && d.boundaries.IsInstructionDataAt(addr) {
-		return "", 0, &MidInstructionError{Address: addr}
+		// Output warning comment and byte as data, then continue
+		return d.formatMidInstructionAt(addr, needsBlankLine), 1, nil
 	}
 
 	var sb strings.Builder
@@ -154,14 +155,21 @@ func (d *disassembler) formatCodeAt(addr uint16, needsBlankLine *bool) (string, 
 	line := labelCol + mnemonic + operandStr
 
 	if len(inlines) > 0 {
-		// Pad to column for comment (minimum 2 spaces before semicolon)
-		line = padToColumn(line, 38)
-		line += "; " + inlines[0].Comment
+		// Collect all annotation lines (handling multi-line comments)
+		var commentLines []string
+		for _, ann := range inlines {
+			for _, l := range strings.Split(ann.Comment, "\n") {
+				commentLines = append(commentLines, l)
+			}
+		}
+
+		// First line attached to instruction
+		line = padToColumn(line, 38) + "; " + commentLines[0]
 		sb.WriteString(line + "\n")
 
-		// Additional inline comments on continuation lines
-		for i := 1; i < len(inlines); i++ {
-			contLine := padToColumn("", 38) + "; " + inlines[i].Comment
+		// Continuation lines
+		for i := 1; i < len(commentLines); i++ {
+			contLine := padToColumn("", 38) + "; " + commentLines[i]
 			sb.WriteString(contLine + "\n")
 		}
 	} else {
@@ -274,7 +282,9 @@ func (d *disassembler) formatHeadlines(hdls []headlines.Headline) string {
 	var sb strings.Builder
 	sb.WriteString("; --------------------------------------------------------\n")
 	for _, h := range hdls {
-		sb.WriteString("; " + h.Comment + "\n")
+		for _, line := range strings.Split(h.Comment, "\n") {
+			sb.WriteString("; " + line + "\n")
+		}
 	}
 	sb.WriteString("; --------------------------------------------------------\n")
 	return sb.String()
@@ -286,4 +296,24 @@ func padToColumn(s string, col int) string {
 		return s + "  " // Always at least 2 spaces
 	}
 	return s + strings.Repeat(" ", col-len(s))
+}
+
+// formatMidInstructionAt handles a mid-instruction address by outputting a warning
+// comment and the byte as data. Returns formatted output.
+func (d *disassembler) formatMidInstructionAt(addr uint16, needsBlankLine *bool) string {
+	var sb strings.Builder
+
+	if *needsBlankLine {
+		sb.WriteString("\n")
+	}
+
+	// Output warning comment
+	sb.WriteString(fmt.Sprintf("; WARNING: mid-instruction byte at $%04X\n", addr))
+
+	// Read and output the byte as data
+	b, _ := d.state.Binary.ReadByte(addr)
+	sb.WriteString(fmt.Sprintf("$%04X                   .BYTE $%02X\n", addr, b))
+
+	*needsBlankLine = true
+	return sb.String()
 }
