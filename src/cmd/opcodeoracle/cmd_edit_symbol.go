@@ -2,9 +2,7 @@ package main
 
 import (
 	"fmt"
-	"os"
 
-	"opcodeoracle/internal/stateio"
 	"opcodeoracle/internal/symbols"
 
 	"github.com/urfave/cli/v2"
@@ -40,25 +38,17 @@ func cmdEditSymbol(c *cli.Context, stateFile string) error {
 	name := c.String("name")
 	remove := c.Bool("remove")
 
-	// Check if file exists
-	if _, err := os.Stat(stateFile); os.IsNotExist(err) {
-		return cli.Exit("error: state file not found: "+stateFile, ExitFileNotFound)
-	}
-
 	// Load state
-	s, err := stateio.Load(stateFile)
+	s, err := loadState(stateFile)
 	if err != nil {
-		return cli.Exit("error: loading state: "+err.Error(), ExitInvalidState)
+		return err
 	}
 
 	if remove {
 		// Remove symbol
 		s.Symbols.Remove(addr, name)
-		if err := stateio.Save(s, stateFile); err != nil {
-			return cli.Exit("error: saving state: "+err.Error(), ExitIOError)
-		}
 		fmt.Printf("Removed symbol '%s' at $%04X\n", name, addr)
-		return nil
+		return saveState(s, stateFile)
 	}
 
 	// Adding symbol - type is required
@@ -90,10 +80,6 @@ func cmdEditSymbol(c *cli.Context, stateFile string) error {
 		Source: symbols.SourceUser,
 	})
 
-	if err := stateio.Save(s, stateFile); err != nil {
-		return cli.Exit("error: saving state: "+err.Error(), ExitIOError)
-	}
-
 	fmt.Printf("Added %s symbol '%s' at $%04X\n", typeStr, name, addr)
-	return nil
+	return saveState(s, stateFile)
 }

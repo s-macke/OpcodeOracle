@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"opcodeoracle/internal/analysis"
 	"opcodeoracle/internal/disasm"
 	"opcodeoracle/internal/state"
 )
@@ -17,10 +18,10 @@ type Exporter struct {
 }
 
 // NewExporter creates an exporter for the given state.
-func NewExporter(s *state.State) *Exporter {
+func NewExporter(s *state.State, boundaries analysis.InstructionBoundaries) *Exporter {
 	return &Exporter{
 		state:  s,
-		disasm: disasm.NewDisassembler(s, nil),
+		disasm: disasm.NewDisassembler(s, boundaries),
 	}
 }
 

@@ -32,6 +32,7 @@ func main() {
 			exportCommand(),
 			editCommand(),
 			disasmCommand(),
+			validateCommand(),
 		},
 		Action: func(c *cli.Context) error {
 			if c.NArg() == 0 {

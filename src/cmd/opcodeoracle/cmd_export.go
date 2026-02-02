@@ -7,7 +7,6 @@ import (
 	"github.com/urfave/cli/v2"
 
 	"opcodeoracle/internal/export"
-	"opcodeoracle/internal/stateio"
 )
 
 func exportCommand() *cli.Command {
@@ -34,7 +33,7 @@ func cmdExport(c *cli.Context) error {
 
 	stateFile := c.Args().Get(0)
 
-	s, err := stateio.Load(stateFile)
+	s, analyzer, err := loadAndAnalyze(stateFile)
 	if err != nil {
 		return cli.Exit("error: "+err.Error(), ExitInvalidState)
 	}
@@ -45,7 +44,7 @@ func cmdExport(c *cli.Context) error {
 		outputPath = deriveOutputPath(stateFile, ".asm")
 	}
 
-	exp := export.NewExporter(s)
+	exp := export.NewExporter(s, analyzer)
 	if err := exp.Export(outputPath); err != nil {
 		return cli.Exit("error: "+err.Error(), ExitIOError)
 	}

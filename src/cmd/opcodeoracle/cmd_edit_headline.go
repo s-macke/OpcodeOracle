@@ -8,27 +8,27 @@ import (
 	"github.com/urfave/cli/v2"
 )
 
-func editAnnotationCommand() *cli.Command {
+func editHeadlineCommand() *cli.Command {
 	return &cli.Command{
-		Name:      "annotation",
-		Usage:     "Set inline annotation in state file",
+		Name:      "headline",
+		Usage:     "Set headline in state file",
 		ArgsUsage: "<state-file>",
 		Flags: []cli.Flag{
 			&cli.StringFlag{Name: "address", Aliases: []string{"a"}, Required: true, Usage: "target address (hex like $C000 or 0xC000)"},
-			&cli.StringFlag{Name: "comment", Aliases: []string{"c"}, Usage: "annotation text (empty to remove)"},
+			&cli.StringFlag{Name: "comment", Aliases: []string{"c"}, Usage: "headline text (empty to remove)"},
 			&cli.StringFlag{Name: "author", Value: "user", Usage: "author (user or assistant)"},
-			&cli.BoolFlag{Name: "extend", Aliases: []string{"e"}, Usage: "append to existing annotation instead of replacing"},
+			&cli.BoolFlag{Name: "extend", Aliases: []string{"e"}, Usage: "append to existing headline instead of replacing"},
 		},
 		Action: func(c *cli.Context) error {
 			if c.NArg() != 1 {
 				return cli.Exit("error: requires <state-file> argument", ExitInvalidArgs)
 			}
-			return cmdEditAnnotation(c, c.Args().Get(0))
+			return cmdEditHeadline(c, c.Args().Get(0))
 		},
 	}
 }
 
-func cmdEditAnnotation(c *cli.Context, stateFile string) error {
+func cmdEditHeadline(c *cli.Context, stateFile string) error {
 	// Parse address
 	addr, err := parseNumber(c.String("address"))
 	if err != nil {
@@ -50,16 +50,16 @@ func cmdEditAnnotation(c *cli.Context, stateFile string) error {
 		return err
 	}
 
-	// Set, extend, or remove annotation
+	// Set, extend, or remove headline
 	if comment == "" {
-		s.Annotations.Remove(addr, a)
-		fmt.Printf("Removed annotation at $%04X (author: %s)\n", addr, a)
+		s.Headlines.Remove(addr, a)
+		fmt.Printf("Removed headline at $%04X (author: %s)\n", addr, a)
 	} else if c.Bool("extend") {
-		s.Annotations.Extend(addr, comment, a)
-		fmt.Printf("Extended annotation at $%04X (author: %s)\n", addr, a)
+		s.Headlines.Extend(addr, comment, a)
+		fmt.Printf("Extended headline at $%04X (author: %s)\n", addr, a)
 	} else {
-		s.Annotations.Set(addr, comment, a)
-		fmt.Printf("Set annotation at $%04X (author: %s)\n", addr, a)
+		s.Headlines.Set(addr, comment, a)
+		fmt.Printf("Set headline at $%04X (author: %s)\n", addr, a)
 	}
 
 	return saveState(s, stateFile)

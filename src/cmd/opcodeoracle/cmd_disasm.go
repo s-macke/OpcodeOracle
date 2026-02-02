@@ -7,9 +7,7 @@ import (
 
 	"github.com/urfave/cli/v2"
 
-	"opcodeoracle/internal/analysis"
 	"opcodeoracle/internal/disasm"
-	"opcodeoracle/internal/stateio"
 )
 
 func disasmCommand() *cli.Command {
@@ -40,16 +38,9 @@ func cmdDisasm(c *cli.Context) error {
 	}
 
 	stateFile := c.Args().Get(0)
-
-	s, err := stateio.Load(stateFile)
+	s, analyzer, err := loadAndAnalyze(stateFile)
 	if err != nil {
-		return cli.Exit("error: "+err.Error(), ExitInvalidState)
-	}
-
-	// Run analysis to get instruction boundaries (xrefs only, don't modify state)
-	analyzer := analysis.NewAnalyzer(s, analysis.UpdateXRefsOnly)
-	if err := analyzer.Analyze(); err != nil {
-		return cli.Exit("error: analysis failed: "+err.Error(), ExitAnalysisError)
+		return err
 	}
 
 	// Determine address range (use binary bounds as defaults)
