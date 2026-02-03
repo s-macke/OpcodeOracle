@@ -1033,3 +1033,297 @@ func TestIsInstructionDataAtMutuallyExclusive(t *testing.T) {
 		}
 	}
 }
+
+func TestHardwareSymbolVICBorder(t *testing.T) {
+	// Program: LDA $D020 (VIC border color register)
+	// 1000: AD 20 D0  LDA $D020
+	// 1003: 60        RTS
+	data := []byte{
+		0xAD, 0x20, 0xD0, // LDA $D020
+		0x60, // RTS
+	}
+
+	s := newTestState(data, 0x1000, []uint16{0x1000})
+	analyzer := NewAnalyzer(s, UpdateAll)
+
+	if err := analyzer.Analyze(); err != nil {
+		t.Fatalf("Analyze failed: %v", err)
+	}
+
+	// Verify VIC_BORDER symbol created at $D020
+	syms := s.Symbols.At(0xD020)
+	found := false
+	for _, sym := range syms {
+		if sym.Name == "VIC_BORDER" && sym.Type == symbols.SymbolByte && sym.Source == symbols.SourceC64ROM {
+			found = true
+			break
+		}
+	}
+	if !found {
+		t.Error("Expected VIC_BORDER symbol at $D020")
+	}
+}
+
+func TestHardwareSymbolCIA1(t *testing.T) {
+	// Program: STA $DC00 (CIA1 data port A - keyboard)
+	// 1000: 8D 00 DC  STA $DC00
+	// 1003: 60        RTS
+	data := []byte{
+		0x8D, 0x00, 0xDC, // STA $DC00
+		0x60, // RTS
+	}
+
+	s := newTestState(data, 0x1000, []uint16{0x1000})
+	analyzer := NewAnalyzer(s, UpdateAll)
+
+	if err := analyzer.Analyze(); err != nil {
+		t.Fatalf("Analyze failed: %v", err)
+	}
+
+	// Verify CIA1_PRA symbol created at $DC00
+	syms := s.Symbols.At(0xDC00)
+	found := false
+	for _, sym := range syms {
+		if sym.Name == "CIA1_PRA" && sym.Type == symbols.SymbolByte && sym.Source == symbols.SourceC64ROM {
+			found = true
+			break
+		}
+	}
+	if !found {
+		t.Error("Expected CIA1_PRA symbol at $DC00")
+	}
+}
+
+func TestHardwareSymbolSID(t *testing.T) {
+	// Program: STA $D418 (SID volume register)
+	// 1000: 8D 18 D4  STA $D418
+	// 1003: 60        RTS
+	data := []byte{
+		0x8D, 0x18, 0xD4, // STA $D418
+		0x60, // RTS
+	}
+
+	s := newTestState(data, 0x1000, []uint16{0x1000})
+	analyzer := NewAnalyzer(s, UpdateAll)
+
+	if err := analyzer.Analyze(); err != nil {
+		t.Fatalf("Analyze failed: %v", err)
+	}
+
+	// Verify SID_VOLUME symbol created at $D418
+	syms := s.Symbols.At(0xD418)
+	found := false
+	for _, sym := range syms {
+		if sym.Name == "SID_VOLUME" && sym.Type == symbols.SymbolByte && sym.Source == symbols.SourceC64ROM {
+			found = true
+			break
+		}
+	}
+	if !found {
+		t.Error("Expected SID_VOLUME symbol at $D418")
+	}
+}
+
+func TestHardwareSymbolIndexed(t *testing.T) {
+	// Program: LDA $D000,X (VIC sprite X position with index)
+	// 1000: BD 00 D0  LDA $D000,X
+	// 1003: 60        RTS
+	data := []byte{
+		0xBD, 0x00, 0xD0, // LDA $D000,X
+		0x60, // RTS
+	}
+
+	s := newTestState(data, 0x1000, []uint16{0x1000})
+	analyzer := NewAnalyzer(s, UpdateAll)
+
+	if err := analyzer.Analyze(); err != nil {
+		t.Fatalf("Analyze failed: %v", err)
+	}
+
+	// Verify VIC_SPR0_X symbol created at $D000
+	syms := s.Symbols.At(0xD000)
+	found := false
+	for _, sym := range syms {
+		if sym.Name == "VIC_SPR0_X" && sym.Type == symbols.SymbolByte && sym.Source == symbols.SourceC64ROM {
+			found = true
+			break
+		}
+	}
+	if !found {
+		t.Error("Expected VIC_SPR0_X symbol at $D000")
+	}
+}
+
+func TestHardwareSymbolNoSymbolsFlag(t *testing.T) {
+	// Test that hardware symbols are NOT created when UpdateSymbols flag is not set
+	// Program: LDA $D020
+	data := []byte{
+		0xAD, 0x20, 0xD0, // LDA $D020
+		0x60, // RTS
+	}
+
+	s := newTestState(data, 0x1000, []uint16{0x1000})
+	s.Symbols = symbols.NewTable()
+
+	// Only update regions and xrefs, NOT symbols
+	analyzer := NewAnalyzer(s, UpdateRegions|UpdateXRefs)
+
+	if err := analyzer.Analyze(); err != nil {
+		t.Fatalf("Analyze failed: %v", err)
+	}
+
+	// Verify no symbol created at $D020
+	syms := s.Symbols.At(0xD020)
+	if len(syms) != 0 {
+		t.Errorf("Expected no symbols at $D020 when UpdateSymbols not set, got %d", len(syms))
+	}
+}
+
+func TestHardwareSymbolNonHardwareAddress(t *testing.T) {
+	// Program: LDA $C000 (not a hardware register)
+	// 1000: AD 00 C0  LDA $C000
+	// 1003: 60        RTS
+	data := []byte{
+		0xAD, 0x00, 0xC0, // LDA $C000
+		0x60, // RTS
+	}
+
+	s := newTestState(data, 0x1000, []uint16{0x1000})
+	analyzer := NewAnalyzer(s, UpdateAll)
+
+	if err := analyzer.Analyze(); err != nil {
+		t.Fatalf("Analyze failed: %v", err)
+	}
+
+	// Verify no hardware symbol created at $C000
+	syms := s.Symbols.At(0xC000)
+	for _, sym := range syms {
+		if sym.Source == symbols.SourceC64ROM {
+			t.Errorf("Unexpected C64ROM symbol at non-hardware address $C000: %s", sym.Name)
+		}
+	}
+}
+
+func TestHardwareSymbolVICMirror(t *testing.T) {
+	// Program: LDA $D120 (mirrored VIC border color register)
+	// VIC-II mirrors every 64 bytes, so $D120 ($D100 + $20) maps to $D020
+	// 1000: AD 20 D1  LDA $D120
+	// 1003: 60        RTS
+	data := []byte{
+		0xAD, 0x20, 0xD1, // LDA $D120
+		0x60, // RTS
+	}
+
+	s := newTestState(data, 0x1000, []uint16{0x1000})
+	analyzer := NewAnalyzer(s, UpdateAll)
+
+	if err := analyzer.Analyze(); err != nil {
+		t.Fatalf("Analyze failed: %v", err)
+	}
+
+	// Verify VIC_BORDER symbol created at mirrored address $D120
+	syms := s.Symbols.At(0xD120)
+	found := false
+	for _, sym := range syms {
+		if sym.Name == "VIC_BORDER" && sym.Type == symbols.SymbolByte && sym.Source == symbols.SourceC64ROM {
+			found = true
+			break
+		}
+	}
+	if !found {
+		t.Error("Expected VIC_BORDER symbol at mirrored address $D120")
+	}
+}
+
+func TestHardwareSymbolSIDMirror(t *testing.T) {
+	// Program: STA $D520 (mirrored SID register)
+	// SID mirrors every 32 bytes, so $D520 ($D500 + $00) maps to $D400 (SID_V1_FREQ_LO)
+	// 1000: 8D 00 D5  STA $D500
+	// 1003: 60        RTS
+	data := []byte{
+		0x8D, 0x00, 0xD5, // STA $D500
+		0x60, // RTS
+	}
+
+	s := newTestState(data, 0x1000, []uint16{0x1000})
+	analyzer := NewAnalyzer(s, UpdateAll)
+
+	if err := analyzer.Analyze(); err != nil {
+		t.Fatalf("Analyze failed: %v", err)
+	}
+
+	// Verify SID_V1_FREQ_LO symbol created at mirrored address $D500
+	syms := s.Symbols.At(0xD500)
+	found := false
+	for _, sym := range syms {
+		if sym.Name == "SID_V1_FREQ_LO" && sym.Type == symbols.SymbolByte && sym.Source == symbols.SourceC64ROM {
+			found = true
+			break
+		}
+	}
+	if !found {
+		t.Error("Expected SID_V1_FREQ_LO symbol at mirrored address $D500")
+	}
+}
+
+func TestHardwareSymbolCIA1Mirror(t *testing.T) {
+	// Program: LDA $DC10 (mirrored CIA1 register)
+	// CIA1 mirrors every 16 bytes, so $DC10 maps to $DC00 (CIA1_PRA)
+	// 1000: AD 10 DC  LDA $DC10
+	// 1003: 60        RTS
+	data := []byte{
+		0xAD, 0x10, 0xDC, // LDA $DC10
+		0x60, // RTS
+	}
+
+	s := newTestState(data, 0x1000, []uint16{0x1000})
+	analyzer := NewAnalyzer(s, UpdateAll)
+
+	if err := analyzer.Analyze(); err != nil {
+		t.Fatalf("Analyze failed: %v", err)
+	}
+
+	// Verify CIA1_PRA symbol created at mirrored address $DC10
+	syms := s.Symbols.At(0xDC10)
+	found := false
+	for _, sym := range syms {
+		if sym.Name == "CIA1_PRA" && sym.Type == symbols.SymbolByte && sym.Source == symbols.SourceC64ROM {
+			found = true
+			break
+		}
+	}
+	if !found {
+		t.Error("Expected CIA1_PRA symbol at mirrored address $DC10")
+	}
+}
+
+func TestHardwareSymbolCIA2Mirror(t *testing.T) {
+	// Program: STA $DD20 (mirrored CIA2 register)
+	// CIA2 mirrors every 16 bytes, so $DD20 maps to $DD00 (CIA2_PRA)
+	// 1000: 8D 20 DD  STA $DD20
+	// 1003: 60        RTS
+	data := []byte{
+		0x8D, 0x20, 0xDD, // STA $DD20
+		0x60, // RTS
+	}
+
+	s := newTestState(data, 0x1000, []uint16{0x1000})
+	analyzer := NewAnalyzer(s, UpdateAll)
+
+	if err := analyzer.Analyze(); err != nil {
+		t.Fatalf("Analyze failed: %v", err)
+	}
+
+	// Verify CIA2_PRA symbol created at mirrored address $DD20
+	syms := s.Symbols.At(0xDD20)
+	found := false
+	for _, sym := range syms {
+		if sym.Name == "CIA2_PRA" && sym.Type == symbols.SymbolByte && sym.Source == symbols.SourceC64ROM {
+			found = true
+			break
+		}
+	}
+	if !found {
+		t.Error("Expected CIA2_PRA symbol at mirrored address $DD20")
+	}
+}

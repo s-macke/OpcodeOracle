@@ -179,6 +179,13 @@ func (a *Analyzer) process(addr uint16) error {
 
 	switch class {
 	case ClassSequential:
+		// Check if instruction references an absolute address (potential hardware register)
+		if hasAbsoluteOperand(def.Mode) {
+			target, err := a.state.Binary.ReadWord(addr + 1)
+			if err == nil {
+				a.addHardwareSymbol(target)
+			}
+		}
 		// Continue to next instruction
 		a.enqueue(addr + uint16(def.Size))
 
@@ -301,4 +308,27 @@ func (a *Analyzer) addSubroutine(addr uint16) {
 			Source: symbols.SourceAuto,
 		})
 	}
+}
+
+// addHardwareSymbol adds a C64 hardware symbol at the target address if known.
+func (a *Analyzer) addHardwareSymbol(addr uint16) {
+	if a.flags&UpdateSymbols == 0 {
+		return
+	}
+	if name, ok := asm.LookupC64Hardware(addr); ok {
+		a.state.Symbols.Add(addr, symbols.Symbol{
+			Name:   name,
+			Type:   symbols.SymbolByte,
+			Source: symbols.SourceC64ROM,
+		})
+	}
+}
+
+// hasAbsoluteOperand returns true if the addressing mode uses a 16-bit address operand.
+func hasAbsoluteOperand(mode asm.AddrMode) bool {
+	switch mode {
+	case asm.AddrAbsolute, asm.AddrAbsoluteX, asm.AddrAbsoluteY:
+		return true
+	}
+	return false
 }
