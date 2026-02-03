@@ -33,6 +33,10 @@ func (d *disassembler) formatDataAt(addr, end uint16, needsBlankLine *bool) (str
 	// Check if this is a labeled byte data item (SymbolWord is expanded to _LO/_HI bytes at creation time)
 	if label != "" && symType == symbols.SymbolByte {
 		// No blank line before labeled bytes - they flow naturally from preceding data
+		// Output xref comments before labeled data
+		for _, xref := range d.formatXRefs(addr) {
+			sb.WriteString(xref + "\n")
+		}
 		// Format as labeled .BYTE
 		b, _ := d.state.Binary.ReadByte(addr)
 		line := fmt.Sprintf("$%04X %-18s.BYTE $%02X", addr, label+":", b)
@@ -54,6 +58,11 @@ func (d *disassembler) formatDataAt(addr, end uint16, needsBlankLine *bool) (str
 		}
 		sb.WriteString(d.formatInlinesAsHeadlines(inlines))
 		*needsBlankLine = false
+	}
+
+	// Output xref comments before data line
+	for _, xref := range d.formatXRefs(addr) {
+		sb.WriteString(xref + "\n")
 	}
 
 	// Read bytes
@@ -130,6 +139,11 @@ func (d *disassembler) calculateDataChunkSize(addr, end uint16) int {
 
 		// Check for inline annotation (breaks chunk)
 		if len(d.state.Annotations.At(nextAddr)) > 0 {
+			return i
+		}
+
+		// Check for xref (break so xref appears on its own line)
+		if d.state.XRefs != nil && len(d.state.XRefs.To(nextAddr)) > 0 {
 			return i
 		}
 	}

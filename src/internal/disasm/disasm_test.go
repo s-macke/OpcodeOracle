@@ -75,7 +75,7 @@ func TestDisassembleWithLabels(t *testing.T) {
 }
 
 func TestDisassembleBranch(t *testing.T) {
-	// Create state with a branch instruction: BNE L_0805
+	// Create state with a branch instruction: BNE $0805 with symbol comment
 	data := []byte{
 		0xCA,       // DEX
 		0xD0, 0x02, // BNE +2 (to 0x0805)
@@ -96,9 +96,12 @@ func TestDisassembleBranch(t *testing.T) {
 		t.Fatalf("Disassemble failed: %v", err)
 	}
 
-	// Check that branch target is resolved to label
-	if !strings.Contains(output, "BNE L_0805") {
-		t.Errorf("Output should contain BNE L_0805, got:\n%s", output)
+	// Check that branch shows numeric address with symbol in comment
+	if !strings.Contains(output, "BNE $0805") {
+		t.Errorf("Output should contain BNE $0805, got:\n%s", output)
+	}
+	if !strings.Contains(output, "; L_0805") {
+		t.Errorf("Output should contain ; L_0805 comment, got:\n%s", output)
 	}
 }
 
@@ -122,8 +125,58 @@ func TestDisassembleBackwardsBranch(t *testing.T) {
 		t.Fatalf("Disassemble failed: %v", err)
 	}
 
-	if !strings.Contains(output, "BNE LOOP") {
-		t.Errorf("Output should contain BNE LOOP for backwards branch, got:\n%s", output)
+	// Check that branch shows numeric address with symbol in comment
+	if !strings.Contains(output, "BNE $0800") {
+		t.Errorf("Output should contain BNE $0800 for backwards branch, got:\n%s", output)
+	}
+	if !strings.Contains(output, "; LOOP") {
+		t.Errorf("Output should contain ; LOOP comment, got:\n%s", output)
+	}
+}
+
+func TestDisassembleBranchWithSymbolAndAnnotation(t *testing.T) {
+	// Create state with a branch instruction that has both a target symbol and an annotation
+	data := []byte{
+		0xCA,       // DEX at 0x0800
+		0xD0, 0xFD, // BNE -3 (to 0x0800)
+	}
+	s := state.NewState(data, 0x0800, nil, "test.prg")
+	s.Regions.Set(0x0800, 0x0802, regions.RegionCode)
+	s.Symbols.Add(0x0800, symbols.Symbol{
+		Name:   "loop_start",
+		Type:   symbols.SymbolLabel,
+		Source: symbols.SourceUser,
+	})
+	// Add annotation to the branch instruction
+	s.Annotations.Set(0x0801, "Loop until X is zero", author.User)
+
+	d := NewDisassembler(s, nil)
+	output, err := d.Disassemble(0x0800, 0x0803)
+	if err != nil {
+		t.Fatalf("Disassemble failed: %v", err)
+	}
+
+	// Check that branch shows symbol in first comment
+	if !strings.Contains(output, "; loop_start") {
+		t.Errorf("Output should contain ; loop_start comment, got:\n%s", output)
+	}
+	// Check that annotation is also present
+	if !strings.Contains(output, "; Loop until X is zero") {
+		t.Errorf("Output should contain ; Loop until X is zero comment, got:\n%s", output)
+	}
+
+	// Verify the symbol appears before the annotation (on the same line as the instruction)
+	lines := strings.Split(output, "\n")
+	for _, line := range lines {
+		if strings.Contains(line, "BNE") {
+			if !strings.Contains(line, "; loop_start") {
+				t.Errorf("BNE line should have symbol comment on same line, got:\n%s", line)
+			}
+			if strings.Contains(line, "Loop until X is zero") {
+				t.Errorf("Annotation should NOT be on the same line as BNE instruction, got:\n%s", line)
+			}
+			break
+		}
 	}
 }
 

@@ -156,6 +156,9 @@ func (d *disassembler) formatCodeAt(addr uint16, needsBlankLine *bool) (string, 
 	xrefComments := d.formatXRefs(addr)
 	operandXRefs := d.formatOperandXRefs(addr, def.OperandSize())
 
+	// Get symbol for operand address (if any)
+	operandSymbol := d.getOperandSymbol(def, operand, addr)
+
 	if len(inlines) > 0 {
 		// Collect all annotation lines (handling multi-line comments)
 		var commentLines []string
@@ -165,22 +168,39 @@ func (d *disassembler) formatCodeAt(addr uint16, needsBlankLine *bool) (string, 
 			}
 		}
 
-		// First line attached to instruction
-		line = padToColumn(line, 38) + "; " + commentLines[0]
-		sb.WriteString(line + "\n")
-
-		// Continuation lines
-		for i := 1; i < len(commentLines); i++ {
-			contLine := padToColumn("", 38) + "; " + commentLines[i]
-			sb.WriteString(contLine + "\n")
+		// First line: operand symbol if present, otherwise first annotation
+		if operandSymbol != "" {
+			line = padToColumn(line, 38) + "; " + operandSymbol
+			sb.WriteString(line + "\n")
+			// All annotations on continuation lines
+			for _, comment := range commentLines {
+				sb.WriteString(padToColumn("", 38) + "; " + comment + "\n")
+			}
+		} else {
+			// No symbol - first annotation on instruction line
+			line = padToColumn(line, 38) + "; " + commentLines[0]
+			sb.WriteString(line + "\n")
+			// Remaining annotations on continuation lines
+			for i := 1; i < len(commentLines); i++ {
+				sb.WriteString(padToColumn("", 38) + "; " + commentLines[i] + "\n")
+			}
 		}
 
 		// Xrefs on continuation lines after annotations
 		for _, xref := range xrefComments {
 			sb.WriteString(padToColumn("", 38) + xref + "\n")
 		}
+	} else if operandSymbol != "" {
+		// No annotations - show operand symbol as comment
+		line = padToColumn(line, 38) + "; " + operandSymbol
+		sb.WriteString(line + "\n")
+
+		// Xrefs on continuation lines
+		for _, xref := range xrefComments {
+			sb.WriteString(padToColumn("", 38) + xref + "\n")
+		}
 	} else if len(xrefComments) > 0 {
-		// No annotations - first xref on same line as instruction
+		// No annotations or symbol - first xref on same line as instruction
 		line = padToColumn(line, 38) + xrefComments[0]
 		sb.WriteString(line + "\n")
 
@@ -219,19 +239,25 @@ func (d *disassembler) getDataType(addr uint16) symbols.SymbolType {
 	return ""
 }
 
+// getOperandAddress extracts the target address from an instruction operand.
+// Returns the address and true if the addressing mode uses a 16-bit address, false otherwise.
+func getOperandAddress(mode asm.AddrMode, operand []byte) (uint16, bool) {
+	if len(operand) < 2 {
+		return 0, false
+	}
+	switch mode {
+	case asm.AddrAbsolute, asm.AddrAbsoluteX, asm.AddrAbsoluteY, asm.AddrIndirect:
+		return uint16(operand[0]) | uint16(operand[1])<<8, true
+	}
+	return 0, false
+}
+
 // formatOperandWithLabel formats the operand, resolving branch targets to labels.
 func (d *disassembler) formatOperandWithLabel(def asm.OpcodeDef, operand []byte, pc uint16) string {
 	if def.Mode == asm.AddrRelative && len(operand) >= 1 {
-		// Calculate branch target
+		// Always show numeric target address (symbol will be in comment)
 		target := calculateBranchTarget(pc, operand[0])
-
-		// Look up symbol at target
-		label := d.getLabel(target)
-		if label != "" {
-			return " " + label
-		}
-		// Generate auto-label format
-		return fmt.Sprintf(" L_%04X", target)
+		return fmt.Sprintf(" $%04X", target)
 	}
 
 	// JSR and JMP with absolute addressing - resolve to label if available
@@ -244,6 +270,23 @@ func (d *disassembler) formatOperandWithLabel(def asm.OpcodeDef, operand []byte,
 	}
 
 	return def.FormatOperand(operand)
+}
+
+// getOperandSymbol returns the symbol name for the instruction's operand target, if any.
+func (d *disassembler) getOperandSymbol(def asm.OpcodeDef, operand []byte, pc uint16) string {
+	// Relative branches
+	if def.Mode == asm.AddrRelative && len(operand) >= 1 {
+		target := calculateBranchTarget(pc, operand[0])
+		return d.getLabel(target)
+	}
+	// Absolute modes (skip JSR/JMP which substitute label in operand)
+	if def.Mode == asm.AddrAbsolute && (def.Op == asm.JSR || def.Op == asm.JMP) {
+		return ""
+	}
+	if opAddr, ok := getOperandAddress(def.Mode, operand); ok {
+		return d.getLabel(opAddr)
+	}
+	return ""
 }
 
 // calculateBranchTarget computes the target address for a relative branch.

@@ -1225,3 +1225,206 @@ func TestHardwareSymbolCIA2Mirror(t *testing.T) {
 		t.Errorf("Expected CIA2_PRA symbol at mirrored address $DD20, got %v", sym)
 	}
 }
+
+func TestDataAccessXRefRead(t *testing.T) {
+	// Program: LDA $D020 (read from VIC border color)
+	// 1000: AD 20 D0  LDA $D020
+	// 1003: 60        RTS
+	data := []byte{
+		0xAD, 0x20, 0xD0, // LDA $D020
+		0x60, // RTS
+	}
+
+	s := newTestState(data, 0x1000, []uint16{0x1000})
+	analyzer := NewAnalyzer(s, UpdateAll)
+
+	if err := analyzer.Analyze(); err != nil {
+		t.Fatalf("Analyze failed: %v", err)
+	}
+
+	// Verify read xref created
+	refs := s.XRefs.From(0x1000)
+	if len(refs) != 1 {
+		t.Fatalf("Expected 1 xref from 0x1000, got %d", len(refs))
+	}
+	if refs[0].To != 0xD020 || refs[0].Type != xrefs.XRefRead {
+		t.Errorf("Expected read xref to $D020, got %+v", refs[0])
+	}
+
+	// Verify xref can be found by target
+	toRefs := s.XRefs.To(0xD020)
+	if len(toRefs) != 1 || toRefs[0].Type != xrefs.XRefRead {
+		t.Errorf("Expected read xref to $D020 via To(), got %+v", toRefs)
+	}
+}
+
+func TestDataAccessXRefWrite(t *testing.T) {
+	// Program: STA $D020 (write to VIC border color)
+	// 1000: 8D 20 D0  STA $D020
+	// 1003: 60        RTS
+	data := []byte{
+		0x8D, 0x20, 0xD0, // STA $D020
+		0x60, // RTS
+	}
+
+	s := newTestState(data, 0x1000, []uint16{0x1000})
+	analyzer := NewAnalyzer(s, UpdateAll)
+
+	if err := analyzer.Analyze(); err != nil {
+		t.Fatalf("Analyze failed: %v", err)
+	}
+
+	// Verify write xref created
+	refs := s.XRefs.From(0x1000)
+	if len(refs) != 1 {
+		t.Fatalf("Expected 1 xref from 0x1000, got %d", len(refs))
+	}
+	if refs[0].To != 0xD020 || refs[0].Type != xrefs.XRefWrite {
+		t.Errorf("Expected write xref to $D020, got %+v", refs[0])
+	}
+}
+
+func TestDataAccessXRefReadModifyWrite(t *testing.T) {
+	// Program: INC $D020 (read-modify-write)
+	// 1000: EE 20 D0  INC $D020
+	// 1003: 60        RTS
+	data := []byte{
+		0xEE, 0x20, 0xD0, // INC $D020
+		0x60, // RTS
+	}
+
+	s := newTestState(data, 0x1000, []uint16{0x1000})
+	analyzer := NewAnalyzer(s, UpdateAll)
+
+	if err := analyzer.Analyze(); err != nil {
+		t.Fatalf("Analyze failed: %v", err)
+	}
+
+	// Verify both read and write xrefs created
+	refs := s.XRefs.From(0x1000)
+	if len(refs) != 2 {
+		t.Fatalf("Expected 2 xrefs from 0x1000 (read+write), got %d", len(refs))
+	}
+
+	hasRead := false
+	hasWrite := false
+	for _, ref := range refs {
+		if ref.To != 0xD020 {
+			t.Errorf("Expected xref to $D020, got $%04X", ref.To)
+		}
+		if ref.Type == xrefs.XRefRead {
+			hasRead = true
+		}
+		if ref.Type == xrefs.XRefWrite {
+			hasWrite = true
+		}
+	}
+	if !hasRead {
+		t.Error("Expected read xref for INC instruction")
+	}
+	if !hasWrite {
+		t.Error("Expected write xref for INC instruction")
+	}
+}
+
+func TestDataAccessXRefZeroPage(t *testing.T) {
+	// Program: LDA $10 (read from zero page)
+	// 1000: A5 10     LDA $10
+	// 1002: 85 20     STA $20
+	// 1004: 60        RTS
+	data := []byte{
+		0xA5, 0x10, // LDA $10
+		0x85, 0x20, // STA $20
+		0x60, // RTS
+	}
+
+	s := newTestState(data, 0x1000, []uint16{0x1000})
+	analyzer := NewAnalyzer(s, UpdateAll)
+
+	if err := analyzer.Analyze(); err != nil {
+		t.Fatalf("Analyze failed: %v", err)
+	}
+
+	// Verify read xref to zero page $10
+	refsFrom1000 := s.XRefs.From(0x1000)
+	if len(refsFrom1000) != 1 || refsFrom1000[0].To != 0x0010 || refsFrom1000[0].Type != xrefs.XRefRead {
+		t.Errorf("Expected read xref to $0010, got %+v", refsFrom1000)
+	}
+
+	// Verify write xref to zero page $20
+	refsFrom1002 := s.XRefs.From(0x1002)
+	if len(refsFrom1002) != 1 || refsFrom1002[0].To != 0x0020 || refsFrom1002[0].Type != xrefs.XRefWrite {
+		t.Errorf("Expected write xref to $0020, got %+v", refsFrom1002)
+	}
+}
+
+func TestDataAccessXRefNoXRefsFlag(t *testing.T) {
+	// Test that data access xrefs are NOT created when UpdateXRefs flag is not set
+	// Program: LDA $D020
+	data := []byte{
+		0xAD, 0x20, 0xD0, // LDA $D020
+		0x60, // RTS
+	}
+
+	s := newTestState(data, 0x1000, []uint16{0x1000})
+
+	// Only update regions and symbols, NOT xrefs
+	analyzer := NewAnalyzer(s, UpdateRegions|UpdateSymbols)
+
+	if err := analyzer.Analyze(); err != nil {
+		t.Fatalf("Analyze failed: %v", err)
+	}
+
+	// Verify no xref created
+	refs := s.XRefs.From(0x1000)
+	if len(refs) != 0 {
+		t.Errorf("Expected no xrefs when UpdateXRefs not set, got %d", len(refs))
+	}
+}
+
+func TestDataAccessXRefIndexedModes(t *testing.T) {
+	// Program with indexed addressing modes
+	// 1000: BD 00 20  LDA $2000,X
+	// 1003: 99 00 30  STA $3000,Y
+	// 1006: B5 10     LDA $10,X
+	// 1008: 96 20     STX $20,Y
+	// 100A: 60        RTS
+	data := []byte{
+		0xBD, 0x00, 0x20, // LDA $2000,X
+		0x99, 0x00, 0x30, // STA $3000,Y
+		0xB5, 0x10, // LDA $10,X
+		0x96, 0x20, // STX $20,Y
+		0x60, // RTS
+	}
+
+	s := newTestState(data, 0x1000, []uint16{0x1000})
+	analyzer := NewAnalyzer(s, UpdateAll)
+
+	if err := analyzer.Analyze(); err != nil {
+		t.Fatalf("Analyze failed: %v", err)
+	}
+
+	// LDA $2000,X should create read xref to base address $2000
+	refs := s.XRefs.From(0x1000)
+	if len(refs) != 1 || refs[0].To != 0x2000 || refs[0].Type != xrefs.XRefRead {
+		t.Errorf("Expected read xref to $2000, got %+v", refs)
+	}
+
+	// STA $3000,Y should create write xref to base address $3000
+	refs = s.XRefs.From(0x1003)
+	if len(refs) != 1 || refs[0].To != 0x3000 || refs[0].Type != xrefs.XRefWrite {
+		t.Errorf("Expected write xref to $3000, got %+v", refs)
+	}
+
+	// LDA $10,X should create read xref to zero page base $0010
+	refs = s.XRefs.From(0x1006)
+	if len(refs) != 1 || refs[0].To != 0x0010 || refs[0].Type != xrefs.XRefRead {
+		t.Errorf("Expected read xref to $0010, got %+v", refs)
+	}
+
+	// STX $20,Y should create write xref to zero page base $0020
+	refs = s.XRefs.From(0x1008)
+	if len(refs) != 1 || refs[0].To != 0x0020 || refs[0].Type != xrefs.XRefWrite {
+		t.Errorf("Expected write xref to $0020, got %+v", refs)
+	}
+}

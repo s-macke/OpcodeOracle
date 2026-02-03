@@ -176,11 +176,22 @@ func (a *Analyzer) process(addr uint16) error {
 
 	switch class {
 	case ClassSequential:
-		// Check if instruction references an absolute address (potential hardware register)
-		if hasAbsoluteOperand(def.Mode) {
-			target, err := a.state.Binary.ReadWord(addr + 1)
-			if err == nil {
-				a.addHardwareSymbol(target)
+		// Add data access xrefs for memory-accessing instructions
+		if hasStaticAddress(def.Mode) {
+			if target, ok := a.readOperandAddress(addr, def.Mode); ok {
+				if a.flags&UpdateXRefs != 0 {
+					if isMemoryRead(def.Op) {
+						a.state.XRefs.Add(addr, target, xrefs.XRefRead)
+					} else if isMemoryWrite(def.Op) {
+						a.state.XRefs.Add(addr, target, xrefs.XRefWrite)
+					} else if isReadModifyWrite(def.Op) {
+						a.state.XRefs.Add(addr, target, xrefs.XRefRead)
+						a.state.XRefs.Add(addr, target, xrefs.XRefWrite)
+					}
+				}
+				if a.flags&UpdateSymbols != 0 {
+					a.addHardwareSymbol(target)
+				}
 			}
 		}
 		// Continue to next instruction
@@ -321,10 +332,62 @@ func (a *Analyzer) addHardwareSymbol(addr uint16) {
 	}
 }
 
-// hasAbsoluteOperand returns true if the addressing mode uses a 16-bit address operand.
-func hasAbsoluteOperand(mode asm.AddrMode) bool {
+// hasStaticAddress returns true if the addressing mode has a statically-known address operand.
+func hasStaticAddress(mode asm.AddrMode) bool {
 	switch mode {
+	case asm.AddrZeroPage, asm.AddrZeroPageX, asm.AddrZeroPageY:
+		return true
 	case asm.AddrAbsolute, asm.AddrAbsoluteX, asm.AddrAbsoluteY:
+		return true
+	}
+	return false
+}
+
+// readOperandAddress reads the operand address for zero page or absolute addressing modes.
+func (a *Analyzer) readOperandAddress(addr uint16, mode asm.AddrMode) (uint16, bool) {
+	switch mode {
+	case asm.AddrZeroPage, asm.AddrZeroPageX, asm.AddrZeroPageY:
+		b, err := a.state.Binary.ReadByte(addr + 1)
+		if err != nil {
+			return 0, false
+		}
+		return uint16(b), true
+	case asm.AddrAbsolute, asm.AddrAbsoluteX, asm.AddrAbsoluteY:
+		w, err := a.state.Binary.ReadWord(addr + 1)
+		if err != nil {
+			return 0, false
+		}
+		return w, true
+	}
+	return 0, false
+}
+
+// isMemoryRead returns true if the instruction reads from memory.
+func isMemoryRead(m asm.Mnemonic) bool {
+	switch m {
+	case asm.LDA, asm.LDX, asm.LDY:
+		return true
+	case asm.ADC, asm.SBC, asm.AND, asm.EOR, asm.ORA:
+		return true
+	case asm.CMP, asm.CPX, asm.CPY, asm.BIT:
+		return true
+	}
+	return false
+}
+
+// isMemoryWrite returns true if the instruction writes to memory.
+func isMemoryWrite(m asm.Mnemonic) bool {
+	switch m {
+	case asm.STA, asm.STX, asm.STY:
+		return true
+	}
+	return false
+}
+
+// isReadModifyWrite returns true if the instruction reads, modifies, and writes memory.
+func isReadModifyWrite(m asm.Mnemonic) bool {
+	switch m {
+	case asm.INC, asm.DEC, asm.ASL, asm.LSR, asm.ROL, asm.ROR:
 		return true
 	}
 	return false
