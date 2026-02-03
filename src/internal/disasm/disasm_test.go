@@ -544,6 +544,196 @@ func TestDisassembleMultipleInlineAnnotations(t *testing.T) {
 	}
 }
 
+func TestDisassembleWithXRefs(t *testing.T) {
+	// Create state with code that has cross-references
+	data := []byte{
+		0xA9, 0x00, // LDA #$00 at 0x0800
+		0x20, 0x05, 0x08, // JSR $0805 at 0x0802
+		0x4C, 0x00, 0x08, // JMP $0800 at 0x0805
+	}
+	s := state.NewState(data, 0x0800, nil, "test.prg")
+	s.Regions.Set(0x0800, 0x0807, regions.RegionCode)
+
+	// Add symbols
+	s.Symbols.Add(0x0800, symbols.Symbol{
+		Name:   "MAIN",
+		Type:   symbols.SymbolLabel,
+		Source: symbols.SourceUser,
+	})
+	s.Symbols.Add(0x0805, symbols.Symbol{
+		Name:   "LOOP",
+		Type:   symbols.SymbolLabel,
+		Source: symbols.SourceUser,
+	})
+
+	// Add xrefs: JSR from 0x0802 to 0x0805, JMP from 0x0805 to 0x0800
+	s.XRefs.Add(0x0802, 0x0805, "call")
+	s.XRefs.Add(0x0805, 0x0800, "jump")
+
+	d := NewDisassembler(s, nil)
+	output, err := d.Disassemble(0x0800, 0x0808)
+	if err != nil {
+		t.Fatalf("Disassemble failed: %v", err)
+	}
+
+	// Check xref to MAIN from JMP at LOOP
+	if !strings.Contains(output, "; xref: jump from $0805 (LOOP)") {
+		t.Errorf("Output should contain xref to MAIN, got:\n%s", output)
+	}
+
+	// Check xref to LOOP from JSR
+	if !strings.Contains(output, "; xref: call from $0802") {
+		t.Errorf("Output should contain xref to LOOP, got:\n%s", output)
+	}
+}
+
+func TestDisassembleWithMultipleXRefs(t *testing.T) {
+	// Create state with multiple xrefs to same address
+	data := []byte{
+		0xA9, 0x00, // LDA #$00 at 0x0800 (target)
+		0xD0, 0xFC, // BNE $0800 at 0x0802
+		0x4C, 0x00, 0x08, // JMP $0800 at 0x0804
+	}
+	s := state.NewState(data, 0x0800, nil, "test.prg")
+	s.Regions.Set(0x0800, 0x0806, regions.RegionCode)
+
+	// Add xrefs: both branch and jump to 0x0800
+	s.XRefs.Add(0x0802, 0x0800, "branch")
+	s.XRefs.Add(0x0804, 0x0800, "jump")
+
+	d := NewDisassembler(s, nil)
+	output, err := d.Disassemble(0x0800, 0x0807)
+	if err != nil {
+		t.Fatalf("Disassemble failed: %v", err)
+	}
+
+	// Check both xrefs are present on separate lines
+	if !strings.Contains(output, "; xref: branch from $0802") {
+		t.Errorf("Output should contain branch xref, got:\n%s", output)
+	}
+	if !strings.Contains(output, "; xref: jump from $0804") {
+		t.Errorf("Output should contain jump xref, got:\n%s", output)
+	}
+
+	// Count xref lines to verify they're on separate lines
+	xrefCount := strings.Count(output, "; xref:")
+	if xrefCount != 2 {
+		t.Errorf("Expected 2 separate xref lines, got %d in:\n%s", xrefCount, output)
+	}
+}
+
+func TestDisassembleXRefOnSameLine(t *testing.T) {
+	// Verify xref appears on same line as instruction when no annotation
+	data := []byte{
+		0xA9, 0x00, // LDA #$00 at 0x0800
+		0x4C, 0x00, 0x08, // JMP $0800 at 0x0802
+	}
+	s := state.NewState(data, 0x0800, nil, "test.prg")
+	s.Regions.Set(0x0800, 0x0804, regions.RegionCode)
+
+	s.XRefs.Add(0x0802, 0x0800, "jump")
+
+	d := NewDisassembler(s, nil)
+	output, err := d.Disassemble(0x0800, 0x0805)
+	if err != nil {
+		t.Fatalf("Disassemble failed: %v", err)
+	}
+
+	// Check that xref is on the same line as LDA
+	lines := strings.Split(output, "\n")
+	foundXRefOnInstrLine := false
+	for _, line := range lines {
+		if strings.Contains(line, "LDA") && strings.Contains(line, "; xref:") {
+			foundXRefOnInstrLine = true
+			break
+		}
+	}
+	if !foundXRefOnInstrLine {
+		t.Errorf("Xref should be on same line as instruction, got:\n%s", output)
+	}
+}
+
+func TestDisassembleXRefWithAnnotation(t *testing.T) {
+	// Verify xref appears on continuation line when annotation is present
+	data := []byte{
+		0xA9, 0x00, // LDA #$00 at 0x0800
+		0x4C, 0x00, 0x08, // JMP $0800 at 0x0802
+	}
+	s := state.NewState(data, 0x0800, nil, "test.prg")
+	s.Regions.Set(0x0800, 0x0804, regions.RegionCode)
+	s.Annotations.Set(0x0800, "Load accumulator", author.User)
+
+	s.XRefs.Add(0x0802, 0x0800, "jump")
+
+	d := NewDisassembler(s, nil)
+	output, err := d.Disassemble(0x0800, 0x0805)
+	if err != nil {
+		t.Fatalf("Disassemble failed: %v", err)
+	}
+
+	// Check that annotation is on the same line as LDA
+	lines := strings.Split(output, "\n")
+	foundAnnotationOnInstrLine := false
+	foundXRefOnSeparateLine := false
+	for _, line := range lines {
+		if strings.Contains(line, "LDA") && strings.Contains(line, "Load accumulator") {
+			foundAnnotationOnInstrLine = true
+		}
+		if strings.Contains(line, "; xref:") && !strings.Contains(line, "LDA") {
+			foundXRefOnSeparateLine = true
+		}
+	}
+	if !foundAnnotationOnInstrLine {
+		t.Errorf("Annotation should be on same line as instruction, got:\n%s", output)
+	}
+	if !foundXRefOnSeparateLine {
+		t.Errorf("Xref should be on separate line when annotation present, got:\n%s", output)
+	}
+}
+
+func TestDisassembleOperandXRefs(t *testing.T) {
+	// Test xrefs to operand bytes (self-modifying code)
+	data := []byte{
+		0xAD, 0x00, 0x10, // LDA $1000 at 0x0800 (3-byte instruction)
+		0x8D, 0x01, 0x08, // STA $0801 at 0x0803 (modifies operand byte 1)
+		0x8D, 0x02, 0x08, // STA $0802 at 0x0806 (modifies operand byte 2)
+		0x60, // RTS
+	}
+	s := state.NewState(data, 0x0800, nil, "test.prg")
+	s.Regions.Set(0x0800, 0x0809, regions.RegionCode)
+
+	// Add xrefs to operand bytes of the LDA instruction
+	s.XRefs.Add(0x0803, 0x0801, "write") // STA modifies low byte of LDA operand
+	s.XRefs.Add(0x0806, 0x0802, "write") // STA modifies high byte of LDA operand
+
+	d := NewDisassembler(s, nil)
+	output, err := d.Disassemble(0x0800, 0x080A)
+	if err != nil {
+		t.Fatalf("Disassemble failed: %v", err)
+	}
+
+	// Check for xref+1 (first operand byte)
+	if !strings.Contains(output, "; xref+1:") {
+		t.Errorf("Output should contain xref+1 for operand byte 1, got:\n%s", output)
+	}
+	if !strings.Contains(output, "write from $0803") {
+		t.Errorf("Output should contain write from $0803, got:\n%s", output)
+	}
+
+	// Check for xref+2 (second operand byte)
+	if !strings.Contains(output, "; xref+2:") {
+		t.Errorf("Output should contain xref+2 for operand byte 2, got:\n%s", output)
+	}
+	if !strings.Contains(output, "write from $0806") {
+		t.Errorf("Output should contain write from $0806, got:\n%s", output)
+	}
+
+	// Check for self-modifying code indicator
+	if !strings.Contains(output, "[instruction data modified]") {
+		t.Errorf("Output should indicate instruction data is modified, got:\n%s", output)
+	}
+}
+
 func TestIntegrationWithStateFile(t *testing.T) {
 	// Skip if testdata file doesn't exist
 	testFile := "../../../testdata/Nippon.opcodeoracle.json"
