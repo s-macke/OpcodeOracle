@@ -68,11 +68,11 @@ func TestSaveLoad(t *testing.T) {
 	}
 
 	// Check symbols
-	syms := loaded.Symbols.At(0x0801)
-	if len(syms) != 1 {
-		t.Errorf("Symbols at 0x0801 = %d, want 1", len(syms))
-	} else if syms[0].Name != "start" {
-		t.Errorf("Symbol name = %q, want %q", syms[0].Name, "start")
+	sym, ok := loaded.Symbols.At(0x0801)
+	if !ok {
+		t.Error("Symbol at 0x0801 should exist")
+	} else if sym.Name != "start" {
+		t.Errorf("Symbol name = %q, want %q", sym.Name, "start")
 	}
 
 	// Check annotations (inline only)
@@ -215,13 +215,13 @@ func TestLoadNewFormat(t *testing.T) {
 	}
 
 	// Check symbols
-	syms := s.Symbols.At(0x0801)
-	if len(syms) != 1 || syms[0].Name != "start" {
-		t.Errorf("Symbols at 0x0801 = %v, want [start]", syms)
+	sym, ok := s.Symbols.At(0x0801)
+	if !ok || sym.Name != "start" {
+		t.Errorf("Symbol at 0x0801 = %v, want start", sym)
 	}
-	syms = s.Symbols.At(0xD020)
-	if len(syms) != 1 || syms[0].Name != "BORDER" {
-		t.Errorf("Symbols at 0xD020 = %v, want [BORDER]", syms)
+	sym, ok = s.Symbols.At(0xD020)
+	if !ok || sym.Name != "BORDER" {
+		t.Errorf("Symbol at 0xD020 = %v, want BORDER", sym)
 	}
 
 	// Check annotations (inline)

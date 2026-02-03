@@ -24,42 +24,15 @@ func (d *disassembler) formatDataAt(addr, end uint16, needsBlankLine *bool) (str
 	}
 
 	// Check for symbol at this address
-	syms := d.state.Symbols.At(addr)
-	label := d.getLabelFromSymbols(syms)
-	symType := d.getDataTypeFromSymbols(syms)
+	label := d.getLabel(addr)
+	symType := d.getDataType(addr)
 
 	// Get inline annotations
 	inlines := d.getInlineAnnotations(addr, addr+1)
 
-	// Check if this is a labeled data item
-	if label != "" && (symType == symbols.SymbolWord || symType == symbols.SymbolByte) {
-		if *needsBlankLine {
-			sb.WriteString("\n")
-		}
-
-		if symType == symbols.SymbolWord {
-			// Format as .WORD
-			word, err := d.state.Binary.ReadWord(addr)
-			if err != nil {
-				// Fall back to single byte if can't read word
-				b, _ := d.state.Binary.ReadByte(addr)
-				line := fmt.Sprintf("$%04X %-18s.BYTE $%02X", addr, label+":", b)
-				if len(inlines) > 0 {
-					line = padToColumn(line, 38) + "; " + inlines[0].Comment
-				}
-				sb.WriteString(line + "\n")
-				*needsBlankLine = true
-				return sb.String(), 1
-			}
-			line := fmt.Sprintf("$%04X %-18s.WORD $%04X", addr, label+":", word)
-			if len(inlines) > 0 {
-				line = padToColumn(line, 38) + "; " + inlines[0].Comment
-			}
-			sb.WriteString(line + "\n")
-			*needsBlankLine = true
-			return sb.String(), 2
-		}
-
+	// Check if this is a labeled byte data item (SymbolWord is expanded to _LO/_HI bytes at creation time)
+	if label != "" && symType == symbols.SymbolByte {
+		// No blank line before labeled bytes - they flow naturally from preceding data
 		// Format as labeled .BYTE
 		b, _ := d.state.Binary.ReadByte(addr)
 		line := fmt.Sprintf("$%04X %-18s.BYTE $%02X", addr, label+":", b)
@@ -67,7 +40,7 @@ func (d *disassembler) formatDataAt(addr, end uint16, needsBlankLine *bool) (str
 			line = padToColumn(line, 38) + "; " + inlines[0].Comment
 		}
 		sb.WriteString(line + "\n")
-		*needsBlankLine = true
+		*needsBlankLine = false
 		return sb.String(), 1
 	}
 
@@ -146,7 +119,7 @@ func (d *disassembler) calculateDataChunkSize(addr, end uint16) int {
 		}
 
 		// Check for symbol
-		if len(d.state.Symbols.At(nextAddr)) > 0 {
+		if _, ok := d.state.Symbols.At(nextAddr); ok {
 			return i
 		}
 

@@ -8,47 +8,40 @@ func TestSymbolTable(t *testing.T) {
 	table := NewTable()
 
 	// Test empty table
-	syms := table.At(0x0800)
-	if len(syms) != 0 {
-		t.Errorf("At(0x0800) on empty table returned %d symbols, want 0", len(syms))
+	_, ok := table.At(0x0800)
+	if ok {
+		t.Error("At(0x0800) on empty table should return false")
 	}
 
 	// Add symbol
 	sym1 := Symbol{Name: "start", Type: SymbolEntry, Source: SourceUser}
 	table.Add(0x0800, sym1)
 
-	syms = table.At(0x0800)
-	if len(syms) != 1 {
-		t.Fatalf("At(0x0800) returned %d symbols, want 1", len(syms))
+	sym, ok := table.At(0x0800)
+	if !ok {
+		t.Fatal("At(0x0800) should return true after adding symbol")
 	}
-	if syms[0].Name != "start" {
-		t.Errorf("At(0x0800)[0].Name = %q, want %q", syms[0].Name, "start")
+	if sym.Name != "start" {
+		t.Errorf("At(0x0800).Name = %q, want %q", sym.Name, "start")
 	}
 
-	// Add another symbol at same address
+	// Adding lower-priority symbol at same address should NOT replace
 	sym2 := Symbol{Name: "L_0800", Type: SymbolLabel, Source: SourceAuto}
 	table.Add(0x0800, sym2)
 
-	syms = table.At(0x0800)
-	if len(syms) != 2 {
-		t.Fatalf("At(0x0800) returned %d symbols, want 2", len(syms))
+	sym, ok = table.At(0x0800)
+	if !ok {
+		t.Fatal("At(0x0800) should still return true")
+	}
+	if sym.Name != "start" {
+		t.Errorf("At(0x0800).Name = %q, want %q (user symbol should not be replaced by auto)", sym.Name, "start")
 	}
 
-	// Remove first symbol
+	// Remove symbol
 	table.Remove(0x0800, "start")
-	syms = table.At(0x0800)
-	if len(syms) != 1 {
-		t.Fatalf("At(0x0800) after remove returned %d symbols, want 1", len(syms))
-	}
-	if syms[0].Name != "L_0800" {
-		t.Errorf("At(0x0800)[0].Name = %q, want %q", syms[0].Name, "L_0800")
-	}
-
-	// Remove last symbol
-	table.Remove(0x0800, "L_0800")
-	syms = table.At(0x0800)
-	if len(syms) != 0 {
-		t.Errorf("At(0x0800) after removing all returned %d symbols, want 0", len(syms))
+	_, ok = table.At(0x0800)
+	if ok {
+		t.Error("At(0x0800) after remove should return false")
 	}
 }
 
@@ -62,33 +55,111 @@ func TestSymbolTableRemoveNonexistent(t *testing.T) {
 	table.Add(0x0800, Symbol{Name: "test", Type: SymbolLabel, Source: SourceUser})
 	table.Remove(0x0800, "other")
 
-	syms := table.At(0x0800)
-	if len(syms) != 1 {
-		t.Errorf("At(0x0800) returned %d symbols, want 1", len(syms))
+	sym, ok := table.At(0x0800)
+	if !ok {
+		t.Error("At(0x0800) should return true")
+	}
+	if sym.Name != "test" {
+		t.Errorf("At(0x0800).Name = %q, want %q", sym.Name, "test")
 	}
 }
 
-func TestSymbolTableDuplicate(t *testing.T) {
+func TestSymbolTablePriority(t *testing.T) {
+	t.Run("user replaces auto", func(t *testing.T) {
+		table := NewTable()
+
+		// Add auto symbol first
+		table.Add(0x0800, Symbol{Name: "L_0800", Type: SymbolLabel, Source: SourceAuto})
+
+		// User symbol should replace it
+		table.Add(0x0800, Symbol{Name: "main", Type: SymbolEntry, Source: SourceUser})
+
+		sym, _ := table.At(0x0800)
+		if sym.Name != "main" {
+			t.Errorf("At(0x0800).Name = %q, want %q (user should replace auto)", sym.Name, "main")
+		}
+	})
+
+	t.Run("auto does not replace user", func(t *testing.T) {
+		table := NewTable()
+
+		// Add user symbol first
+		table.Add(0x0800, Symbol{Name: "main", Type: SymbolEntry, Source: SourceUser})
+
+		// Auto symbol should NOT replace it
+		table.Add(0x0800, Symbol{Name: "L_0800", Type: SymbolLabel, Source: SourceAuto})
+
+		sym, _ := table.At(0x0800)
+		if sym.Name != "main" {
+			t.Errorf("At(0x0800).Name = %q, want %q (auto should not replace user)", sym.Name, "main")
+		}
+	})
+
+	t.Run("assistant replaces auto", func(t *testing.T) {
+		table := NewTable()
+
+		table.Add(0x0800, Symbol{Name: "L_0800", Type: SymbolLabel, Source: SourceAuto})
+		table.Add(0x0800, Symbol{Name: "loop", Type: SymbolLabel, Source: SourceAssistant})
+
+		sym, _ := table.At(0x0800)
+		if sym.Name != "loop" {
+			t.Errorf("At(0x0800).Name = %q, want %q", sym.Name, "loop")
+		}
+	})
+
+	t.Run("user replaces assistant", func(t *testing.T) {
+		table := NewTable()
+
+		table.Add(0x0800, Symbol{Name: "loop", Type: SymbolLabel, Source: SourceAssistant})
+		table.Add(0x0800, Symbol{Name: "main_loop", Type: SymbolLabel, Source: SourceUser})
+
+		sym, _ := table.At(0x0800)
+		if sym.Name != "main_loop" {
+			t.Errorf("At(0x0800).Name = %q, want %q", sym.Name, "main_loop")
+		}
+	})
+
+	t.Run("same priority replaces", func(t *testing.T) {
+		table := NewTable()
+
+		table.Add(0x0800, Symbol{Name: "first", Type: SymbolLabel, Source: SourceAuto})
+		table.Add(0x0800, Symbol{Name: "second", Type: SymbolLabel, Source: SourceAuto})
+
+		sym, _ := table.At(0x0800)
+		if sym.Name != "second" {
+			t.Errorf("At(0x0800).Name = %q, want %q (same priority should replace)", sym.Name, "second")
+		}
+	})
+}
+
+func TestSymbolWordExpansion(t *testing.T) {
 	table := NewTable()
 
-	sym := Symbol{Name: "start", Type: SymbolEntry, Source: SourceUser}
+	// Add a word symbol
+	table.Add(0x0900, Symbol{Name: "PTR", Type: SymbolWord, Source: SourceUser})
 
-	// Add same symbol twice
-	table.Add(0x0800, sym)
-	table.Add(0x0800, sym)
-
-	syms := table.At(0x0800)
-	if len(syms) != 1 {
-		t.Errorf("At(0x0800) returned %d symbols, want 1 (duplicate should be ignored)", len(syms))
+	// Should create PTR_LO at 0x0900
+	symLo, ok := table.At(0x0900)
+	if !ok {
+		t.Fatal("At(0x0900) should return true after adding word symbol")
+	}
+	if symLo.Name != "PTR_LO" {
+		t.Errorf("At(0x0900).Name = %q, want %q", symLo.Name, "PTR_LO")
+	}
+	if symLo.Type != SymbolByte {
+		t.Errorf("At(0x0900).Type = %q, want %q", symLo.Type, SymbolByte)
 	}
 
-	// Same name but different type is not a duplicate
-	sym2 := Symbol{Name: "start", Type: SymbolLabel, Source: SourceUser}
-	table.Add(0x0800, sym2)
-
-	syms = table.At(0x0800)
-	if len(syms) != 2 {
-		t.Errorf("At(0x0800) returned %d symbols, want 2", len(syms))
+	// Should create PTR_HI at 0x0901
+	symHi, ok := table.At(0x0901)
+	if !ok {
+		t.Fatal("At(0x0901) should return true after adding word symbol")
+	}
+	if symHi.Name != "PTR_HI" {
+		t.Errorf("At(0x0901).Name = %q, want %q", symHi.Name, "PTR_HI")
+	}
+	if symHi.Type != SymbolByte {
+		t.Errorf("At(0x0901).Type = %q, want %q", symHi.Type, SymbolByte)
 	}
 }
 
@@ -123,7 +194,8 @@ func TestSubroutinesInRange(t *testing.T) {
 		table.Add(0x0810, Symbol{Name: "entry", Type: SymbolEntry, Source: SourceUser})
 		table.Add(0x0820, Symbol{Name: "label", Type: SymbolLabel, Source: SourceUser})
 		table.Add(0x0830, Symbol{Name: "byte", Type: SymbolByte, Source: SourceUser})
-		table.Add(0x0840, Symbol{Name: "word", Type: SymbolWord, Source: SourceUser})
+		// Word expands to _LO and _HI bytes, so we test with a regular byte instead
+		table.Add(0x0840, Symbol{Name: "data", Type: SymbolByte, Source: SourceUser})
 
 		result := table.SubroutinesInRange(0x0800, 0x0900)
 		if len(result) != 2 {
@@ -149,4 +221,21 @@ func TestSubroutinesInRange(t *testing.T) {
 			t.Errorf("SubroutinesInRange not sorted by address: %v", result)
 		}
 	})
+}
+
+func TestAllReturnsMap(t *testing.T) {
+	table := NewTable()
+	table.Add(0x0800, Symbol{Name: "a", Type: SymbolLabel, Source: SourceUser})
+	table.Add(0x0900, Symbol{Name: "b", Type: SymbolSubroutine, Source: SourceUser})
+
+	all := table.All()
+	if len(all) != 2 {
+		t.Errorf("All() returned %d entries, want 2", len(all))
+	}
+	if all[0x0800].Name != "a" {
+		t.Errorf("All()[0x0800].Name = %q, want %q", all[0x0800].Name, "a")
+	}
+	if all[0x0900].Name != "b" {
+		t.Errorf("All()[0x0900].Name = %q, want %q", all[0x0900].Name, "b")
+	}
 }

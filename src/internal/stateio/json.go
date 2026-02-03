@@ -1,6 +1,7 @@
 package stateio
 
 import (
+	"encoding/json"
 	"fmt"
 	"strconv"
 	"strings"
@@ -21,10 +22,38 @@ type jsonState struct {
 	Metadata    jsonMetadata                       `json:"metadata"`
 	Binary      jsonBinary                         `json:"binary"`
 	EntryPoints []string                           `json:"entryPoints"`
-	Symbols     map[string][]jsonSymbol            `json:"symbols,omitempty"`
+	Symbols     map[string]jsonSymbolValue         `json:"symbols,omitempty"`
 	Annotations map[string]*jsonAddressAnnotations `json:"annotations,omitempty"`
 	Headlines   map[string]*jsonAddressHeadlines   `json:"headlines,omitempty"`
 	Regions     []jsonRegion                       `json:"regions,omitempty"`
+}
+
+// jsonSymbolValue can unmarshal either a single jsonSymbol or an array of them (for backward compatibility)
+type jsonSymbolValue []jsonSymbol
+
+func (v *jsonSymbolValue) UnmarshalJSON(data []byte) error {
+	// Try array first (old format)
+	var arr []jsonSymbol
+	if err := json.Unmarshal(data, &arr); err == nil {
+		*v = arr
+		return nil
+	}
+	// Try single object (new format)
+	var single jsonSymbol
+	if err := json.Unmarshal(data, &single); err == nil {
+		*v = []jsonSymbol{single}
+		return nil
+	}
+	return fmt.Errorf("invalid symbol value")
+}
+
+func (v jsonSymbolValue) MarshalJSON() ([]byte, error) {
+	// Always serialize as single object (new format)
+	if len(v) == 1 {
+		return json.Marshal(v[0])
+	}
+	// Fallback to array if somehow we have multiple (shouldn't happen)
+	return json.Marshal([]jsonSymbol(v))
 }
 
 type jsonMetadata struct {
@@ -107,16 +136,14 @@ func stateToJSON(s *state.State) *jsonState {
 
 	// Convert symbols
 	if allSyms := s.Symbols.All(); len(allSyms) > 0 {
-		js.Symbols = make(map[string][]jsonSymbol)
-		for addr, syms := range allSyms {
+		js.Symbols = make(map[string]jsonSymbolValue)
+		for addr, sym := range allSyms {
 			addrStr := formatHex(addr)
-			for _, sym := range syms {
-				js.Symbols[addrStr] = append(js.Symbols[addrStr], jsonSymbol{
-					Name:   sym.Name,
-					Type:   string(sym.Type),
-					Source: string(sym.Source),
-				})
-			}
+			js.Symbols[addrStr] = jsonSymbolValue{{
+				Name:   sym.Name,
+				Type:   string(sym.Type),
+				Source: string(sym.Source),
+			}}
 		}
 	}
 
@@ -215,13 +242,14 @@ func jsonToState(js *jsonState) (*state.State, error) {
 		s.EntryPoints[i] = ep
 	}
 
-	// Convert symbols
-	for addrStr, syms := range js.Symbols {
+	// Convert symbols (handles both old array format and new single-symbol format)
+	for addrStr, symVal := range js.Symbols {
 		addr, err := parseHex(addrStr)
 		if err != nil {
 			return nil, fmt.Errorf("invalid symbol address: %w", err)
 		}
-		for _, sym := range syms {
+		// symVal is always a slice (either from array or single object)
+		for _, sym := range symVal {
 			s.Symbols.Add(addr, symbols.Symbol{
 				Name:   sym.Name,
 				Type:   symbols.SymbolType(sym.Type),

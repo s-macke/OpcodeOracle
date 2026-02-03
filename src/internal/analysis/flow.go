@@ -78,12 +78,9 @@ func (a *Analyzer) Analyze() error {
 
 	// Also seed from existing subroutine and label symbols in the symbol table
 	// This allows user-defined or imported symbols to drive analysis
-	for addr, syms := range a.state.Symbols.All() {
-		for _, sym := range syms {
-			if sym.Type == symbols.SymbolSubroutine || sym.Type == symbols.SymbolLabel || sym.Type == symbols.SymbolEntry {
-				a.enqueue(addr)
-				break // Only need to enqueue the address once
-			}
+	for addr, sym := range a.state.Symbols.All() {
+		if sym.Type == symbols.SymbolSubroutine || sym.Type == symbols.SymbolLabel || sym.Type == symbols.SymbolEntry {
+			a.enqueue(addr)
 		}
 	}
 
@@ -319,7 +316,7 @@ func (a *Analyzer) addHardwareSymbol(addr uint16) {
 		a.state.Symbols.Add(addr, symbols.Symbol{
 			Name:   name,
 			Type:   symbols.SymbolByte,
-			Source: symbols.SourceC64ROM,
+			Source: symbols.SourceAuto,
 		})
 	}
 }

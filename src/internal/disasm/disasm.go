@@ -182,29 +182,16 @@ func (d *disassembler) formatCodeAt(addr uint16, needsBlankLine *bool) (string, 
 
 // getLabel returns the label name for an address, or empty string if none.
 func (d *disassembler) getLabel(addr uint16) string {
-	syms := d.state.Symbols.At(addr)
-	return d.getLabelFromSymbols(syms)
-}
-
-// getLabelFromSymbols extracts a label name from a symbol slice.
-func (d *disassembler) getLabelFromSymbols(syms []symbols.Symbol) string {
-	for _, sym := range syms {
-		// Prefer user-defined symbols, but accept any
-		if sym.Source == symbols.SourceUser {
-			return sym.Name
-		}
-	}
-	// Return first available
-	if len(syms) > 0 {
-		return syms[0].Name
+	if sym, ok := d.state.Symbols.At(addr); ok {
+		return sym.Name
 	}
 	return ""
 }
 
-// getDataTypeFromSymbols extracts the data type from a symbol slice.
-func (d *disassembler) getDataTypeFromSymbols(syms []symbols.Symbol) symbols.SymbolType {
-	for _, sym := range syms {
-		if sym.Type == symbols.SymbolWord || sym.Type == symbols.SymbolByte {
+// getDataType returns the data type from the symbol at addr, or empty if none.
+func (d *disassembler) getDataType(addr uint16) symbols.SymbolType {
+	if sym, ok := d.state.Symbols.At(addr); ok {
+		if sym.Type == symbols.SymbolByte {
 			return sym.Type
 		}
 	}

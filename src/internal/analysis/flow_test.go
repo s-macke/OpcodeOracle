@@ -130,8 +130,7 @@ func TestAnalyzeLinearCode(t *testing.T) {
 	}
 
 	// Verify entry point symbol created
-	syms := s.Symbols.At(0x1000)
-	if len(syms) == 0 {
+	if _, ok := s.Symbols.At(0x1000); !ok {
 		t.Error("Expected symbol at entry point 0x1000")
 	}
 
@@ -187,15 +186,8 @@ func TestAnalyzeConditionalBranch(t *testing.T) {
 	}
 
 	// Verify label created at branch target
-	syms := s.Symbols.At(0x1005)
-	found := false
-	for _, sym := range syms {
-		if sym.Type == symbols.SymbolLabel {
-			found = true
-			break
-		}
-	}
-	if !found {
+	sym, ok := s.Symbols.At(0x1005)
+	if !ok || sym.Type != symbols.SymbolLabel {
 		t.Error("Expected label at branch target 0x1005")
 	}
 }
@@ -242,19 +234,11 @@ func TestAnalyzeJSR(t *testing.T) {
 	}
 
 	// Verify subroutine symbol created
-	syms := s.Symbols.At(0x1010)
-	found := false
-	for _, sym := range syms {
-		if sym.Type == symbols.SymbolSubroutine {
-			found = true
-			if sym.Name != "SUB_1010" {
-				t.Errorf("Expected subroutine name SUB_1010, got %s", sym.Name)
-			}
-			break
-		}
-	}
-	if !found {
+	sym, ok := s.Symbols.At(0x1010)
+	if !ok || sym.Type != symbols.SymbolSubroutine {
 		t.Error("Expected subroutine symbol at 0x1010")
+	} else if sym.Name != "SUB_1010" {
+		t.Errorf("Expected subroutine name SUB_1010, got %s", sym.Name)
 	}
 }
 
@@ -294,15 +278,8 @@ func TestAnalyzeJMPAbsolute(t *testing.T) {
 		t.Error("Expected xref from JMP")
 	}
 
-	syms := s.Symbols.At(0x1010)
-	found := false
-	for _, sym := range syms {
-		if sym.Type == symbols.SymbolLabel && sym.Name == "L_1010" {
-			found = true
-			break
-		}
-	}
-	if !found {
+	sym, ok := s.Symbols.At(0x1010)
+	if !ok || sym.Type != symbols.SymbolLabel || sym.Name != "L_1010" {
 		t.Error("Expected label L_1010 at jump target")
 	}
 }
@@ -415,22 +392,13 @@ func TestAnalyzeMultipleEntryPoints(t *testing.T) {
 	}
 
 	// Both should have entry symbols
-	syms1 := s.Symbols.At(0x1000)
-	syms2 := s.Symbols.At(0x1002)
+	sym1, ok1 := s.Symbols.At(0x1000)
+	sym2, ok2 := s.Symbols.At(0x1002)
 
-	hasEntry := func(syms []symbols.Symbol) bool {
-		for _, s := range syms {
-			if s.Type == symbols.SymbolEntry {
-				return true
-			}
-		}
-		return false
-	}
-
-	if !hasEntry(syms1) {
+	if !ok1 || sym1.Type != symbols.SymbolEntry {
 		t.Error("Expected entry symbol at 0x1000")
 	}
-	if !hasEntry(syms2) {
+	if !ok2 || sym2.Type != symbols.SymbolEntry {
 		t.Error("Expected entry symbol at 0x1002")
 	}
 }
@@ -464,17 +432,12 @@ func TestAnalyzeBackwardBranch(t *testing.T) {
 		t.Error("Fall-through after loop not discovered")
 	}
 
-	// Label at loop start
-	syms := s.Symbols.At(0x1000)
-	hasLabel := false
-	for _, sym := range syms {
-		if sym.Type == symbols.SymbolLabel {
-			hasLabel = true
-			break
-		}
-	}
-	if !hasLabel {
-		t.Error("Expected label at loop target 0x1000")
+	// Label at loop start (note: entry symbol may have replaced label due to priority)
+	sym, ok := s.Symbols.At(0x1000)
+	if !ok {
+		t.Error("Expected symbol at loop target 0x1000")
+	} else if sym.Type != symbols.SymbolLabel && sym.Type != symbols.SymbolEntry {
+		t.Errorf("Expected label or entry at loop target 0x1000, got %v", sym.Type)
 	}
 }
 
@@ -515,11 +478,8 @@ func TestAnalyzeFromAddress(t *testing.T) {
 	}
 
 	// No entry symbols should be created (AnalyzeFrom doesn't add symbols)
-	syms := s.Symbols.At(0x1000)
-	for _, sym := range syms {
-		if sym.Type == symbols.SymbolEntry {
-			t.Error("AnalyzeFrom should not create entry symbols")
-		}
+	if sym, ok := s.Symbols.At(0x1000); ok && sym.Type == symbols.SymbolEntry {
+		t.Error("AnalyzeFrom should not create entry symbols")
 	}
 }
 
@@ -693,13 +653,11 @@ func TestUpdateFlagsXRefsOnly(t *testing.T) {
 	}
 
 	// Symbols should NOT be created
-	syms := s.Symbols.At(0x1000)
-	if len(syms) != 0 {
+	if _, ok := s.Symbols.At(0x1000); ok {
 		t.Error("Symbols should not be created with UpdateXRefsOnly flag")
 	}
 
-	syms = s.Symbols.At(0x1010)
-	if len(syms) != 0 {
+	if _, ok := s.Symbols.At(0x1010); ok {
 		t.Error("Subroutine symbol should not be created with UpdateXRefsOnly flag")
 	}
 }
@@ -734,10 +692,10 @@ func TestUpdateFlagsNoSymbols(t *testing.T) {
 	}
 
 	// No symbols should be created
-	if len(s.Symbols.At(0x1000)) != 0 {
+	if _, ok := s.Symbols.At(0x1000); ok {
 		t.Error("Entry symbol should not be created")
 	}
-	if len(s.Symbols.At(0x1005)) != 0 {
+	if _, ok := s.Symbols.At(0x1005); ok {
 		t.Error("Subroutine symbol should not be created")
 	}
 }
@@ -765,10 +723,10 @@ func TestUpdateFlagsNoXRefs(t *testing.T) {
 	}
 
 	// Symbols should be created
-	if len(s.Symbols.At(0x1000)) == 0 {
+	if _, ok := s.Symbols.At(0x1000); !ok {
 		t.Error("Entry symbol should be created")
 	}
-	if len(s.Symbols.At(0x1005)) == 0 {
+	if _, ok := s.Symbols.At(0x1005); !ok {
 		t.Error("Subroutine symbol should be created")
 	}
 
@@ -800,7 +758,7 @@ func TestUpdateFlagsNoRegions(t *testing.T) {
 	}
 
 	// Symbols should be created
-	if len(s.Symbols.At(0x1000)) == 0 {
+	if _, ok := s.Symbols.At(0x1000); !ok {
 		t.Error("Entry symbol should be created")
 	}
 
@@ -1051,16 +1009,9 @@ func TestHardwareSymbolVICBorder(t *testing.T) {
 	}
 
 	// Verify VIC_BORDER symbol created at $D020
-	syms := s.Symbols.At(0xD020)
-	found := false
-	for _, sym := range syms {
-		if sym.Name == "VIC_BORDER" && sym.Type == symbols.SymbolByte && sym.Source == symbols.SourceC64ROM {
-			found = true
-			break
-		}
-	}
-	if !found {
-		t.Error("Expected VIC_BORDER symbol at $D020")
+	sym, ok := s.Symbols.At(0xD020)
+	if !ok || sym.Name != "VIC_BORDER" || sym.Type != symbols.SymbolByte || sym.Source != symbols.SourceAuto {
+		t.Errorf("Expected VIC_BORDER symbol at $D020, got %v", sym)
 	}
 }
 
@@ -1081,16 +1032,9 @@ func TestHardwareSymbolCIA1(t *testing.T) {
 	}
 
 	// Verify CIA1_PRA symbol created at $DC00
-	syms := s.Symbols.At(0xDC00)
-	found := false
-	for _, sym := range syms {
-		if sym.Name == "CIA1_PRA" && sym.Type == symbols.SymbolByte && sym.Source == symbols.SourceC64ROM {
-			found = true
-			break
-		}
-	}
-	if !found {
-		t.Error("Expected CIA1_PRA symbol at $DC00")
+	sym, ok := s.Symbols.At(0xDC00)
+	if !ok || sym.Name != "CIA1_PRA" || sym.Type != symbols.SymbolByte || sym.Source != symbols.SourceAuto {
+		t.Errorf("Expected CIA1_PRA symbol at $DC00, got %v", sym)
 	}
 }
 
@@ -1111,16 +1055,9 @@ func TestHardwareSymbolSID(t *testing.T) {
 	}
 
 	// Verify SID_VOLUME symbol created at $D418
-	syms := s.Symbols.At(0xD418)
-	found := false
-	for _, sym := range syms {
-		if sym.Name == "SID_VOLUME" && sym.Type == symbols.SymbolByte && sym.Source == symbols.SourceC64ROM {
-			found = true
-			break
-		}
-	}
-	if !found {
-		t.Error("Expected SID_VOLUME symbol at $D418")
+	sym, ok := s.Symbols.At(0xD418)
+	if !ok || sym.Name != "SID_VOLUME" || sym.Type != symbols.SymbolByte || sym.Source != symbols.SourceAuto {
+		t.Errorf("Expected SID_VOLUME symbol at $D418, got %v", sym)
 	}
 }
 
@@ -1141,16 +1078,9 @@ func TestHardwareSymbolIndexed(t *testing.T) {
 	}
 
 	// Verify VIC_SPR0_X symbol created at $D000
-	syms := s.Symbols.At(0xD000)
-	found := false
-	for _, sym := range syms {
-		if sym.Name == "VIC_SPR0_X" && sym.Type == symbols.SymbolByte && sym.Source == symbols.SourceC64ROM {
-			found = true
-			break
-		}
-	}
-	if !found {
-		t.Error("Expected VIC_SPR0_X symbol at $D000")
+	sym, ok := s.Symbols.At(0xD000)
+	if !ok || sym.Name != "VIC_SPR0_X" || sym.Type != symbols.SymbolByte || sym.Source != symbols.SourceAuto {
+		t.Errorf("Expected VIC_SPR0_X symbol at $D000, got %v", sym)
 	}
 }
 
@@ -1173,9 +1103,8 @@ func TestHardwareSymbolNoSymbolsFlag(t *testing.T) {
 	}
 
 	// Verify no symbol created at $D020
-	syms := s.Symbols.At(0xD020)
-	if len(syms) != 0 {
-		t.Errorf("Expected no symbols at $D020 when UpdateSymbols not set, got %d", len(syms))
+	if _, ok := s.Symbols.At(0xD020); ok {
+		t.Error("Expected no symbols at $D020 when UpdateSymbols not set")
 	}
 }
 
@@ -1196,11 +1125,8 @@ func TestHardwareSymbolNonHardwareAddress(t *testing.T) {
 	}
 
 	// Verify no hardware symbol created at $C000
-	syms := s.Symbols.At(0xC000)
-	for _, sym := range syms {
-		if sym.Source == symbols.SourceC64ROM {
-			t.Errorf("Unexpected C64ROM symbol at non-hardware address $C000: %s", sym.Name)
-		}
+	if sym, ok := s.Symbols.At(0xC000); ok && sym.Source == symbols.SourceAuto {
+		t.Errorf("Unexpected C64ROM symbol at non-hardware address $C000: %s", sym.Name)
 	}
 }
 
@@ -1222,16 +1148,9 @@ func TestHardwareSymbolVICMirror(t *testing.T) {
 	}
 
 	// Verify VIC_BORDER symbol created at mirrored address $D120
-	syms := s.Symbols.At(0xD120)
-	found := false
-	for _, sym := range syms {
-		if sym.Name == "VIC_BORDER" && sym.Type == symbols.SymbolByte && sym.Source == symbols.SourceC64ROM {
-			found = true
-			break
-		}
-	}
-	if !found {
-		t.Error("Expected VIC_BORDER symbol at mirrored address $D120")
+	sym, ok := s.Symbols.At(0xD120)
+	if !ok || sym.Name != "VIC_BORDER" || sym.Type != symbols.SymbolByte || sym.Source != symbols.SourceAuto {
+		t.Errorf("Expected VIC_BORDER symbol at mirrored address $D120, got %v", sym)
 	}
 }
 
@@ -1253,16 +1172,9 @@ func TestHardwareSymbolSIDMirror(t *testing.T) {
 	}
 
 	// Verify SID_V1_FREQ_LO symbol created at mirrored address $D500
-	syms := s.Symbols.At(0xD500)
-	found := false
-	for _, sym := range syms {
-		if sym.Name == "SID_V1_FREQ_LO" && sym.Type == symbols.SymbolByte && sym.Source == symbols.SourceC64ROM {
-			found = true
-			break
-		}
-	}
-	if !found {
-		t.Error("Expected SID_V1_FREQ_LO symbol at mirrored address $D500")
+	sym, ok := s.Symbols.At(0xD500)
+	if !ok || sym.Name != "SID_V1_FREQ_LO" || sym.Type != symbols.SymbolByte || sym.Source != symbols.SourceAuto {
+		t.Errorf("Expected SID_V1_FREQ_LO symbol at mirrored address $D500, got %v", sym)
 	}
 }
 
@@ -1284,16 +1196,9 @@ func TestHardwareSymbolCIA1Mirror(t *testing.T) {
 	}
 
 	// Verify CIA1_PRA symbol created at mirrored address $DC10
-	syms := s.Symbols.At(0xDC10)
-	found := false
-	for _, sym := range syms {
-		if sym.Name == "CIA1_PRA" && sym.Type == symbols.SymbolByte && sym.Source == symbols.SourceC64ROM {
-			found = true
-			break
-		}
-	}
-	if !found {
-		t.Error("Expected CIA1_PRA symbol at mirrored address $DC10")
+	sym, ok := s.Symbols.At(0xDC10)
+	if !ok || sym.Name != "CIA1_PRA" || sym.Type != symbols.SymbolByte || sym.Source != symbols.SourceAuto {
+		t.Errorf("Expected CIA1_PRA symbol at mirrored address $DC10, got %v", sym)
 	}
 }
 
@@ -1315,15 +1220,8 @@ func TestHardwareSymbolCIA2Mirror(t *testing.T) {
 	}
 
 	// Verify CIA2_PRA symbol created at mirrored address $DD20
-	syms := s.Symbols.At(0xDD20)
-	found := false
-	for _, sym := range syms {
-		if sym.Name == "CIA2_PRA" && sym.Type == symbols.SymbolByte && sym.Source == symbols.SourceC64ROM {
-			found = true
-			break
-		}
-	}
-	if !found {
-		t.Error("Expected CIA2_PRA symbol at mirrored address $DD20")
+	sym, ok := s.Symbols.At(0xDD20)
+	if !ok || sym.Name != "CIA2_PRA" || sym.Type != symbols.SymbolByte || sym.Source != symbols.SourceAuto {
+		t.Errorf("Expected CIA2_PRA symbol at mirrored address $DD20, got %v", sym)
 	}
 }

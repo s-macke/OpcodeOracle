@@ -14,7 +14,7 @@ import (
 func TestIdentifySegments_DataOnly(t *testing.T) {
 	s := state.NewState(make([]byte, 256), 0x0800, nil, "test.prg")
 	// Default state has everything as data
-	exp := NewExporter(s)
+	exp := NewExporter(s, nil)
 
 	segments := exp.identifySegments()
 
@@ -30,7 +30,7 @@ func TestIdentifySegments_CodeWithoutSubroutines(t *testing.T) {
 	s := state.NewState(make([]byte, 256), 0x0800, nil, "test.prg")
 	s.Regions.Set(0x0800, 0x08FF, regions.RegionCode)
 
-	exp := NewExporter(s)
+	exp := NewExporter(s, nil)
 	segments := exp.identifySegments()
 
 	// Should have: data before code, code segment, data after code
@@ -58,7 +58,7 @@ func TestIdentifySegments_CodeWithSubroutines(t *testing.T) {
 	s.Symbols.Add(0x0900, symbols.Symbol{Name: "sub1", Type: symbols.SymbolSubroutine, Source: symbols.SourceAuto})
 	s.Symbols.Add(0x0A00, symbols.Symbol{Name: "sub2", Type: symbols.SymbolSubroutine, Source: symbols.SourceAuto})
 
-	exp := NewExporter(s)
+	exp := NewExporter(s, nil)
 	segments := exp.identifySegments()
 
 	// Find subroutine segments
@@ -99,7 +99,7 @@ func TestIdentifySegments_CodeBeforeFirstSubroutine(t *testing.T) {
 	// Subroutine starts at 0x0900, not at region start
 	s.Symbols.Add(0x0900, symbols.Symbol{Name: "sub1", Type: symbols.SymbolSubroutine, Source: symbols.SourceAuto})
 
-	exp := NewExporter(s)
+	exp := NewExporter(s, nil)
 	segments := exp.identifySegments()
 
 	// Should have code segment before subroutine
@@ -149,7 +149,7 @@ func TestSectionTitle(t *testing.T) {
 
 func TestGenerateHeader(t *testing.T) {
 	s := state.NewState(make([]byte, 256), 0x0800, nil, "test.prg")
-	exp := NewExporter(s)
+	exp := NewExporter(s, nil)
 
 	header := exp.generateHeader("")
 
@@ -166,7 +166,7 @@ func TestGenerateHeader(t *testing.T) {
 
 func TestGenerateHeader_WithSegmentInfo(t *testing.T) {
 	s := state.NewState(make([]byte, 256), 0x0800, nil, "test.prg")
-	exp := NewExporter(s)
+	exp := NewExporter(s, nil)
 
 	header := exp.generateHeader("subroutine @ $1000")
 
@@ -181,7 +181,7 @@ func TestExport(t *testing.T) {
 	s := state.NewState(data, 0x0800, nil, "test.prg")
 	s.Regions.Set(0x0800, 0x0805, regions.RegionCode)
 
-	exp := NewExporter(s)
+	exp := NewExporter(s, nil)
 
 	tmpDir := t.TempDir()
 	outPath := filepath.Join(tmpDir, "output.asm")

@@ -160,6 +160,7 @@ func TestDisassembleDataWithSymbol(t *testing.T) {
 		Type:   symbols.SymbolByte,
 		Source: symbols.SourceUser,
 	})
+	// SymbolWord is now expanded to _LO and _HI byte symbols
 	s.Symbols.Add(0x0901, symbols.Symbol{
 		Name:   "PTR",
 		Type:   symbols.SymbolWord,
@@ -175,8 +176,12 @@ func TestDisassembleDataWithSymbol(t *testing.T) {
 	if !strings.Contains(output, "FLAG:") || !strings.Contains(output, ".BYTE $42") {
 		t.Errorf("Output should contain FLAG: label and .BYTE $42, got:\n%s", output)
 	}
-	if !strings.Contains(output, "PTR:") || !strings.Contains(output, ".WORD $1000") {
-		t.Errorf("Output should contain PTR: label and .WORD $1000, got:\n%s", output)
+	// Word symbols are now expanded to _LO and _HI byte symbols
+	if !strings.Contains(output, "PTR_LO:") || !strings.Contains(output, ".BYTE $00") {
+		t.Errorf("Output should contain PTR_LO: label and .BYTE $00, got:\n%s", output)
+	}
+	if !strings.Contains(output, "PTR_HI:") || !strings.Contains(output, ".BYTE $10") {
+		t.Errorf("Output should contain PTR_HI: label and .BYTE $10, got:\n%s", output)
 	}
 }
 
