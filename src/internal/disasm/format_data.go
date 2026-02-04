@@ -24,26 +24,20 @@ func (d *disassembler) formatDataAt(addr, end uint16, needsBlankLine *bool) (str
 	}
 
 	// Check for symbol at this address
-	label := d.getLabel(addr)
-	symType := d.getDataType(addr)
+	label := ""
+	symType := symbols.SymbolType("")
+	if sym, ok := d.getSymbol(addr); ok {
+		label = sym.Name
+		symType = sym.Type
+	}
 
 	// Get inline annotations
 	inlines := d.getInlineAnnotations(addr, addr+1)
+	inlineLines := splitInlineComments(inlines)
 
 	// Check if this is a labeled byte data item (SymbolWord is expanded to _LO/_HI bytes at creation time)
 	if label != "" && symType == symbols.SymbolByte {
-		// No blank line before labeled bytes - they flow naturally from preceding data
-		// Output xref comments before labeled data
-		for _, xref := range d.formatXRefs(addr) {
-			sb.WriteString(xref + "\n")
-		}
-		// Format as labeled .BYTE
-		b, _ := d.state.Binary.ReadByte(addr)
-		line := fmt.Sprintf("$%04X %-18s.BYTE $%02X", addr, label+":", b)
-		if len(inlines) > 0 {
-			line = padToColumn(line, 38) + "; " + inlines[0].Comment
-		}
-		sb.WriteString(line + "\n")
+		sb.WriteString(d.formatLabeledByte(addr, label, inlineLines))
 		*needsBlankLine = false
 		return sb.String(), 1
 	}
@@ -60,9 +54,35 @@ func (d *disassembler) formatDataAt(addr, end uint16, needsBlankLine *bool) (str
 		*needsBlankLine = false
 	}
 
+	sb.WriteString(d.formatDataRow(addr, chunkSize))
+	*needsBlankLine = true
+	return sb.String(), chunkSize
+}
+
+func (d *disassembler) formatLabeledByte(addr uint16, label string, inlineLines []string) string {
+	var sb strings.Builder
+
+	// No blank line before labeled bytes - they flow naturally from preceding data
+	// Output xref comments before labeled data
+	for _, xref := range d.formatXRefs(addr) {
+		sb.WriteString("; " + xref + "\n")
+	}
+	// Format as labeled .BYTE
+	b, _ := d.state.Binary.ReadByte(addr)
+	line := fmt.Sprintf("$%04X %-18s.BYTE $%02X", addr, label+":", b)
+	if len(inlineLines) > 0 {
+		line = padToColumn(line, instructionCommentCol) + "; " + inlineLines[0]
+	}
+	sb.WriteString(line + "\n")
+	return sb.String()
+}
+
+func (d *disassembler) formatDataRow(addr uint16, chunkSize int) string {
+	var sb strings.Builder
+
 	// Output xref comments before data line
 	for _, xref := range d.formatXRefs(addr) {
-		sb.WriteString(xref + "\n")
+		sb.WriteString("; " + xref + "\n")
 	}
 
 	// Read bytes
@@ -85,22 +105,10 @@ func (d *disassembler) formatDataAt(addr, end uint16, needsBlankLine *bool) (str
 	// Format: $XXXX padded to 24 chars, then .BYTE hex  ; "ASCII"
 	// Column 95 = 24 (label) + 6 (.BYTE ) + 63 (max 16 bytes hex) + 2 (spacing)
 	line := fmt.Sprintf("$%04X                   .BYTE %s", addr, hexStr)
-	line = padToColumn(line, 95)
+	line = padToColumn(line, dataAsciiCol)
 	line += fmt.Sprintf("; \"%s\"", ascii)
 
 	sb.WriteString(line + "\n")
-	*needsBlankLine = true
-	return sb.String(), chunkSize
-}
-
-// formatInlinesAsHeadlines formats inline annotations as a headline block (for data).
-func (d *disassembler) formatInlinesAsHeadlines(inlines []inlineAnnotation) string {
-	var sb strings.Builder
-	sb.WriteString("; --------------------------------------------------------\n")
-	for _, i := range inlines {
-		sb.WriteString("; " + i.Comment + "\n")
-	}
-	sb.WriteString("; --------------------------------------------------------\n")
 	return sb.String()
 }
 
@@ -149,17 +157,4 @@ func (d *disassembler) calculateDataChunkSize(addr, end uint16) int {
 	}
 
 	return maxBytes
-}
-
-// toASCII converts bytes to printable ASCII, using '.' for non-printable.
-func toASCII(bytes []byte) string {
-	result := make([]byte, len(bytes))
-	for i, b := range bytes {
-		if b >= 0x20 && b <= 0x7E {
-			result[i] = b
-		} else {
-			result[i] = '.'
-		}
-	}
-	return string(result)
 }

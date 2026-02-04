@@ -180,6 +180,44 @@ func TestDisassembleBranchWithSymbolAndAnnotation(t *testing.T) {
 	}
 }
 
+func TestDisassembleZeroPageSymbolComment(t *testing.T) {
+	// Create state with zero page operand and symbol
+	data := []byte{
+		0xA5, 0x10, // LDA $10
+	}
+	s := state.NewState(data, 0x0800, nil, "test.prg")
+	s.Regions.Set(0x0800, 0x0801, regions.RegionCode)
+	s.Symbols.Add(0x0010, symbols.Symbol{
+		Name:   "ZPVAL",
+		Type:   symbols.SymbolByte,
+		Source: symbols.SourceUser,
+	})
+
+	d := NewDisassembler(s, nil)
+	output, err := d.Disassemble(0x0800, 0x0802)
+	if err != nil {
+		t.Fatalf("Disassemble failed: %v", err)
+	}
+
+	if !strings.Contains(output, "LDA $10") {
+		t.Errorf("Output should contain LDA $10, got:\n%s", output)
+	}
+	if !strings.Contains(output, "; ZPVAL") {
+		t.Errorf("Output should contain ; ZPVAL comment, got:\n%s", output)
+	}
+
+	// Verify the symbol appears on the same line as the instruction
+	lines := strings.Split(output, "\n")
+	for _, line := range lines {
+		if strings.Contains(line, "LDA $10") {
+			if !strings.Contains(line, "ZPVAL") {
+				t.Errorf("LDA line should include ZPVAL comment, got:\n%s", line)
+			}
+			break
+		}
+	}
+}
+
 func TestDisassembleData(t *testing.T) {
 	// Create state with data region
 	data := []byte{0x48, 0x45, 0x4C, 0x4C, 0x4F, 0x00}
