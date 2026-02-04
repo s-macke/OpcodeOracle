@@ -72,6 +72,11 @@ func (d *disassembler) formatLabeledByte(addr uint16, label string, inlineLines 
 	line := fmt.Sprintf("$%04X %-18s.BYTE $%02X", addr, label+":", b)
 	if len(inlineLines) > 0 {
 		line = padToColumn(line, instructionCommentCol) + "; " + inlineLines[0]
+		sb.WriteString(line + "\n")
+		for _, comment := range inlineLines[1:] {
+			sb.WriteString(padToColumn("", instructionCommentCol) + "; " + comment + "\n")
+		}
+		return sb.String()
 	}
 	sb.WriteString(line + "\n")
 	return sb.String()

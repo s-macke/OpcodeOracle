@@ -48,7 +48,7 @@ func (d *disassembler) formatOperandXRefs(addr uint16, operandSize int) []string
 			parts = append(parts, part)
 		}
 
-		result = append(result, fmt.Sprintf("; xref+%d: %s  [instruction data modified]", offset, strings.Join(parts, ", ")))
+		result = append(result, fmt.Sprintf("xref+%d: %s  [instruction data modified]", offset, strings.Join(parts, ", ")))
 	}
 
 	return result

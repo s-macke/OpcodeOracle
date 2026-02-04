@@ -100,11 +100,18 @@ func (d *disassembler) formatCodeAt(addr uint16, needsBlankLine *bool) (string, 
 		continuation = append(continuation, xrefComments[1:]...)
 	}
 
+	// If there are only operand xrefs, use the first as the inline comment.
+	if firstComment == "" && len(operandXRefs) > 0 {
+		firstComment = operandXRefs[0]
+		continuation = append(continuation, operandXRefs[1:]...)
+		operandXRefs = nil
+	}
+
 	writeInstructionWithComments(&sb, line, firstComment, continuation)
 
 	// Output operand xrefs (self-modifying code references)
 	for _, oxref := range operandXRefs {
-		sb.WriteString(padToColumn("", instructionCommentCol) + oxref + "\n")
+		sb.WriteString(padToColumn("", instructionCommentCol) + "; " + oxref + "\n")
 	}
 
 	*needsBlankLine = true
