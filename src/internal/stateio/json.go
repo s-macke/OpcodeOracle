@@ -250,11 +250,13 @@ func jsonToState(js *jsonState) (*state.State, error) {
 		}
 		// symVal is always a slice (either from array or single object)
 		for _, sym := range symVal {
-			s.Symbols.Add(addr, symbols.Symbol{
+			if err := s.Symbols.Add(addr, symbols.Symbol{
 				Name:   sym.Name,
 				Type:   symbols.SymbolType(sym.Type),
 				Source: symbols.SymbolSource(sym.Source),
-			})
+			}); err != nil {
+				return nil, fmt.Errorf("invalid symbol at %s: %w", addrStr, err)
+			}
 		}
 	}
 

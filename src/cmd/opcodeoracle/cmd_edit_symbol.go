@@ -74,11 +74,13 @@ func cmdEditSymbol(c *cli.Context, stateFile string) error {
 	}
 
 	// Add symbol
-	s.Symbols.Add(addr, symbols.Symbol{
+	if err := s.Symbols.Add(addr, symbols.Symbol{
 		Name:   name,
 		Type:   symType,
 		Source: symbols.SourceUser,
-	})
+	}); err != nil {
+		return cli.Exit("error: "+err.Error(), ExitInvalidArgs)
+	}
 
 	fmt.Printf("Added %s symbol '%s' at $%04X\n", typeStr, name, addr)
 	return saveState(s, stateFile)

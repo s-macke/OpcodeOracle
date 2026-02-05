@@ -1,6 +1,9 @@
 package symbols
 
-import "sort"
+import (
+	"fmt"
+	"sort"
+)
 
 type SymbolType string
 
@@ -62,21 +65,31 @@ func shouldReplace(existing, new Symbol) bool {
 // Add adds a symbol at the given address.
 // For SymbolWord, expands to _LO and _HI byte symbols.
 // Uses priority: user > assistant > auto. Only replaces if new has equal or higher priority.
-func (t *Table) Add(addr uint16, sym Symbol) {
+// Returns an error if a symbol with the same name already exists at a different address.
+func (t *Table) Add(addr uint16, sym Symbol) error {
 	// Handle SymbolWord: expand to _LO and _HI
 	if sym.Type == SymbolWord {
-		t.Add(addr, Symbol{Name: sym.Name + "_LO", Type: SymbolByte, Source: sym.Source})
-		t.Add(addr+1, Symbol{Name: sym.Name + "_HI", Type: SymbolByte, Source: sym.Source})
-		return
+		if err := t.Add(addr, Symbol{Name: sym.Name + "_LO", Type: SymbolByte, Source: sym.Source}); err != nil {
+			return err
+		}
+		return t.Add(addr+1, Symbol{Name: sym.Name + "_HI", Type: SymbolByte, Source: sym.Source})
+	}
+
+	// Check for duplicate name at a different address
+	for existingAddr, existingSym := range t.symbols {
+		if existingSym.Name == sym.Name && existingAddr != addr {
+			return fmt.Errorf("symbol name %q already exists at $%04X", sym.Name, existingAddr)
+		}
 	}
 
 	// Only replace if new symbol has equal or higher priority
 	if existing, ok := t.symbols[addr]; ok {
 		if !shouldReplace(existing, sym) {
-			return
+			return nil
 		}
 	}
 	t.symbols[addr] = sym
+	return nil
 }
 
 // Remove removes the symbol at the given address if it matches the name.
