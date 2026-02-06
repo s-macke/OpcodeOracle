@@ -33,6 +33,7 @@ func main() {
 			editCommand(),
 			disasmCommand(),
 			validateCommand(),
+			agentCommand(),
 		},
 		Action: func(c *cli.Context) error {
 			if c.NArg() == 0 {
