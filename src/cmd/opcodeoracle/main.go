@@ -35,6 +35,7 @@ func main() {
 			validateCommand(),
 			agentCommand(),
 			chatCommand(),
+			mcpCommand(),
 		},
 		Action: func(c *cli.Context) error {
 			if c.NArg() == 0 {
