@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"strings"
 
 	"opcodeoracle/internal/author"
 
@@ -64,6 +65,8 @@ func (t *AddAnnotationTool) InvokableRun(_ context.Context, argumentsInJSON stri
 	if params.Comment == "" {
 		return "Error: comment cannot be empty", nil
 	}
+
+	params.Comment = strings.ReplaceAll(params.Comment, `\n`, "\n")
 
 	// Validate address is within binary bounds
 	if addr < t.ctx.State.Binary.Start() || addr > t.ctx.State.Binary.End() {

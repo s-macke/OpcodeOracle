@@ -34,6 +34,7 @@ func main() {
 			disasmCommand(),
 			validateCommand(),
 			agentCommand(),
+			chatCommand(),
 		},
 		Action: func(c *cli.Context) error {
 			if c.NArg() == 0 {
