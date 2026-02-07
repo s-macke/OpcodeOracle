@@ -67,6 +67,7 @@ func (a *Agent) Chat(ctx context.Context, input io.Reader) error {
 
 	// Session token totals
 	var sessionPromptTokens, sessionCompletionTokens, sessionCachedTokens int
+	var lastSavedMutationCount uint64
 
 	// Conversation history
 	var history []*schema.Message
@@ -139,6 +140,22 @@ func (a *Agent) Chat(ctx context.Context, input io.Reader) error {
 					if a.config.Verbose && msg != nil {
 						fmt.Fprintf(a.output, "  Result: %s\n", truncate(msg.Content, 200))
 					}
+					if !a.config.DryRun && a.config.StatePath != "" && a.state.Metadata.ArchiveOnSave {
+						toolCtx.Mu.Lock()
+						if toolCtx.MutationCount > lastSavedMutationCount {
+							if err := stateio.Save(a.state, a.config.StatePath); err != nil {
+								if a.config.Verbose {
+									fmt.Fprintf(a.output, "  Warning: save failed: %v\n", err)
+								}
+							} else {
+								lastSavedMutationCount = toolCtx.MutationCount
+								if a.config.Verbose {
+									fmt.Fprintf(a.output, "  [auto-saved state]\n")
+								}
+							}
+						}
+						toolCtx.Mu.Unlock()
+					}
 				}
 			}
 		}
@@ -154,7 +171,7 @@ func (a *Agent) Chat(ctx context.Context, input io.Reader) error {
 			turnPromptTokens, turnCachedTokens, turnCompletionTokens)
 
 		// Save state after each turn (unless dry-run)
-		if !a.config.DryRun && a.config.StatePath != "" {
+		if !a.config.DryRun && a.config.StatePath != "" && !a.state.Metadata.ArchiveOnSave {
 			toolCtx.Mu.Lock()
 			if err := stateio.Save(a.state, a.config.StatePath); err != nil && a.config.Verbose {
 				fmt.Fprintf(a.output, "  Warning: save failed: %v\n", err)

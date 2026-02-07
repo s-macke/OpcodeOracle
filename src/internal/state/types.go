@@ -24,8 +24,9 @@ type State struct {
 }
 
 type Metadata struct {
-	Created     time.Time
-	Modified    time.Time
-	SourceFile  string
-	Description string
+	Created       time.Time
+	Modified      time.Time
+	SourceFile    string
+	Description   string
+	ArchiveOnSave bool
 }

@@ -12,11 +12,12 @@ import (
 
 // Context holds shared state for all tools.
 type Context struct {
-	Mu       sync.Mutex
-	State    *state.State
-	Analyzer *analysis.Analyzer
-	DryRun   bool
-	Verbose  bool
+	Mu            sync.Mutex
+	State         *state.State
+	Analyzer      *analysis.Analyzer
+	DryRun        bool
+	Verbose       bool
+	MutationCount uint64
 
 	// Track changes made during dry run
 	Changes []Change

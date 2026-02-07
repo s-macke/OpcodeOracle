@@ -105,6 +105,7 @@ func (t *AddSymbolTool) InvokableRun(_ context.Context, argumentsInJSON string, 
 	}); err != nil {
 		return fmt.Sprintf("Error: %v", err), nil
 	}
+	t.ctx.MutationCount++
 
 	return fmt.Sprintf("Added symbol at $%04X: %s (%s)", addr, params.Name, symType), nil
 }

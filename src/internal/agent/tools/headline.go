@@ -84,6 +84,7 @@ func (t *AddHeadlineTool) InvokableRun(_ context.Context, argumentsInJSON string
 	}
 
 	t.ctx.State.Headlines.Set(addr, params.Comment, author.Assistant)
+	t.ctx.MutationCount++
 	return fmt.Sprintf("Added headline at $%04X: %s", addr, params.Comment), nil
 }
 

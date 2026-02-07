@@ -84,6 +84,7 @@ func (t *AddAnnotationTool) InvokableRun(_ context.Context, argumentsInJSON stri
 	}
 
 	t.ctx.State.Annotations.Set(addr, params.Comment, author.Assistant)
+	t.ctx.MutationCount++
 	return fmt.Sprintf("Added annotation at $%04X: %s", addr, params.Comment), nil
 }
 

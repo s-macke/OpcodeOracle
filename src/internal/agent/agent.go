@@ -99,6 +99,7 @@ func (a *Agent) Run(ctx context.Context) error {
 
 	// Run the agent and iterate events
 	var toolCallCount int
+	var lastSavedMutationCount uint64
 	var totalPromptTokens, totalCompletionTokens, totalCachedTokens int
 	iter := adkAgent.Run(ctx, input, runOpts...)
 	for {
@@ -107,9 +108,15 @@ func (a *Agent) Run(ctx context.Context) error {
 			break
 		}
 		if event.Err != nil {
-			if a.config.SaveInterval > 0 && !a.config.DryRun && a.config.StatePath != "" {
+			if !a.config.DryRun && a.config.StatePath != "" {
 				toolCtx.Mu.Lock()
-				stateio.Save(a.state, a.config.StatePath)
+				if a.state.Metadata.ArchiveOnSave {
+					if toolCtx.MutationCount > lastSavedMutationCount {
+						_ = stateio.Save(a.state, a.config.StatePath)
+					}
+				} else if a.config.SaveInterval > 0 {
+					_ = stateio.Save(a.state, a.config.StatePath)
+				}
 				toolCtx.Mu.Unlock()
 			}
 			return fmt.Errorf("agent error: %w", event.Err)
@@ -141,22 +148,39 @@ func (a *Agent) Run(ctx context.Context) error {
 				if a.config.Verbose && msg != nil {
 					fmt.Fprintf(a.output, "  Result: %s\n", truncate(msg.Content, 200))
 				}
-				// Periodic save
-				if a.config.SaveInterval > 0 && !a.config.DryRun && a.config.StatePath != "" {
-					toolCallCount++
-					if toolCallCount >= a.config.SaveInterval {
+				if !a.config.DryRun && a.config.StatePath != "" {
+					if a.state.Metadata.ArchiveOnSave {
 						toolCtx.Mu.Lock()
-						if err := stateio.Save(a.state, a.config.StatePath); err != nil && a.config.Verbose {
-							fmt.Fprintf(a.output, "  Warning: periodic save failed: %v\n", err)
+						if toolCtx.MutationCount > lastSavedMutationCount {
+							if err := stateio.Save(a.state, a.config.StatePath); err != nil {
+								if a.config.Verbose {
+									fmt.Fprintf(a.output, "  Warning: save failed: %v\n", err)
+								}
+							} else {
+								lastSavedMutationCount = toolCtx.MutationCount
+								if a.config.Verbose {
+									fmt.Fprintf(a.output, "  [auto-saved state]\n")
+								}
+							}
 						}
 						toolCtx.Mu.Unlock()
-						toolCallCount = 0
-						if a.config.Verbose {
-							fmt.Fprintf(a.output, "  [auto-saved state]\n")
+					} else if a.config.SaveInterval > 0 {
+						// Periodic save
+						toolCallCount++
+						if toolCallCount >= a.config.SaveInterval {
+							toolCtx.Mu.Lock()
+							if err := stateio.Save(a.state, a.config.StatePath); err != nil && a.config.Verbose {
+								fmt.Fprintf(a.output, "  Warning: periodic save failed: %v\n", err)
+							}
+							toolCtx.Mu.Unlock()
+							toolCallCount = 0
+							if a.config.Verbose {
+								fmt.Fprintf(a.output, "  [auto-saved state]\n")
+							}
+							fmt.Fprintf(a.output, "  [tokens: %d read (%d cached), %d write, %d total]\n",
+								totalPromptTokens, totalCachedTokens, totalCompletionTokens,
+								totalPromptTokens+totalCompletionTokens)
 						}
-						fmt.Fprintf(a.output, "  [tokens: %d read (%d cached), %d write, %d total]\n",
-							totalPromptTokens, totalCachedTokens, totalCompletionTokens,
-							totalPromptTokens+totalCompletionTokens)
 					}
 				}
 			}

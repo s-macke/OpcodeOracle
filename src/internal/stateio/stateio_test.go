@@ -497,6 +497,114 @@ func TestSaveNewFormatStructure(t *testing.T) {
 	}
 }
 
+func TestSaveLoadArchiveOnSave(t *testing.T) {
+	tmpDir := t.TempDir()
+	path := filepath.Join(tmpDir, "archive_flag.orc")
+
+	s := state.NewState([]byte{0xEA}, 0x0800, []uint16{0x0800}, "test.prg")
+	s.Metadata.ArchiveOnSave = true
+
+	if err := Save(s, path); err != nil {
+		t.Fatalf("Save() error = %v", err)
+	}
+
+	loaded, err := Load(path)
+	if err != nil {
+		t.Fatalf("Load() error = %v", err)
+	}
+
+	if !loaded.Metadata.ArchiveOnSave {
+		t.Fatal("ArchiveOnSave should persist through save/load")
+	}
+}
+
+func TestSaveArchiveOnFirstSaveNoArchiveFile(t *testing.T) {
+	tmpDir := t.TempDir()
+	path := filepath.Join(tmpDir, "first_save.orc")
+
+	s := state.NewState([]byte{0xEA}, 0x0800, []uint16{0x0800}, "test.prg")
+	s.Metadata.ArchiveOnSave = true
+
+	if err := Save(s, path); err != nil {
+		t.Fatalf("Save() error = %v", err)
+	}
+
+	archiveDir := filepath.Join(tmpDir, "archive")
+	entries, err := os.ReadDir(archiveDir)
+	if err != nil && !os.IsNotExist(err) {
+		t.Fatalf("ReadDir() error = %v", err)
+	}
+	if err == nil && len(entries) != 0 {
+		t.Fatalf("expected no archive files on first save, got %d", len(entries))
+	}
+}
+
+func TestSaveArchiveOnOverwrite(t *testing.T) {
+	tmpDir := t.TempDir()
+	path := filepath.Join(tmpDir, "overwrite.orc")
+
+	s := state.NewState([]byte{0xEA}, 0x0800, []uint16{0x0800}, "test.prg")
+	s.Metadata.ArchiveOnSave = true
+	s.Metadata.Description = "first"
+	if err := Save(s, path); err != nil {
+		t.Fatalf("first Save() error = %v", err)
+	}
+
+	beforeOverwrite, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatalf("ReadFile() error = %v", err)
+	}
+
+	s.Metadata.Description = "second"
+	if err := Save(s, path); err != nil {
+		t.Fatalf("second Save() error = %v", err)
+	}
+
+	archiveDir := filepath.Join(tmpDir, "archive")
+	entries, err := os.ReadDir(archiveDir)
+	if err != nil {
+		t.Fatalf("ReadDir() error = %v", err)
+	}
+	if len(entries) != 1 {
+		t.Fatalf("expected 1 archive file, got %d", len(entries))
+	}
+
+	archivePath := filepath.Join(archiveDir, entries[0].Name())
+	archived, err := os.ReadFile(archivePath)
+	if err != nil {
+		t.Fatalf("ReadFile(archive) error = %v", err)
+	}
+
+	if string(archived) != string(beforeOverwrite) {
+		t.Fatal("archive file does not match pre-overwrite state")
+	}
+}
+
+func TestSaveArchiveDisabledNoArchive(t *testing.T) {
+	tmpDir := t.TempDir()
+	path := filepath.Join(tmpDir, "disabled.orc")
+
+	s := state.NewState([]byte{0xEA}, 0x0800, []uint16{0x0800}, "test.prg")
+	s.Metadata.ArchiveOnSave = false
+	if err := Save(s, path); err != nil {
+		t.Fatalf("first Save() error = %v", err)
+	}
+
+	s.Metadata.Description = "changed"
+	if err := Save(s, path); err != nil {
+		t.Fatalf("second Save() error = %v", err)
+	}
+
+	archiveDir := filepath.Join(tmpDir, "archive")
+	entries, err := os.ReadDir(archiveDir)
+	if err != nil && !os.IsNotExist(err) {
+		t.Fatalf("ReadDir() error = %v", err)
+	}
+	if err == nil && len(entries) != 0 {
+		t.Fatalf("expected no archive files when disabled, got %d", len(entries))
+	}
+}
+
 func contains(s, substr string) bool {
 	return len(s) >= len(substr) && (s == substr || len(s) > 0 && containsHelper(s, substr))
 }

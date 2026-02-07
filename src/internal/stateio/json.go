@@ -57,10 +57,11 @@ func (v jsonSymbolValue) MarshalJSON() ([]byte, error) {
 }
 
 type jsonMetadata struct {
-	Created     string `json:"created"`
-	Modified    string `json:"modified"`
-	SourceFile  string `json:"sourceFile,omitempty"`
-	Description string `json:"description,omitempty"`
+	Created       string `json:"created"`
+	Modified      string `json:"modified"`
+	SourceFile    string `json:"sourceFile,omitempty"`
+	Description   string `json:"description,omitempty"`
+	ArchiveOnSave bool   `json:"archiveOnSave,omitempty"`
 }
 
 type jsonBinary struct {
@@ -118,10 +119,11 @@ func stateToJSON(s *state.State) *jsonState {
 	js := &jsonState{
 		Version: "1.1",
 		Metadata: jsonMetadata{
-			Created:     s.Metadata.Created.UTC().Format(time.RFC3339),
-			Modified:    s.Metadata.Modified.UTC().Format(time.RFC3339),
-			SourceFile:  s.Metadata.SourceFile,
-			Description: s.Metadata.Description,
+			Created:       s.Metadata.Created.UTC().Format(time.RFC3339),
+			Modified:      s.Metadata.Modified.UTC().Format(time.RFC3339),
+			SourceFile:    s.Metadata.SourceFile,
+			Description:   s.Metadata.Description,
+			ArchiveOnSave: s.Metadata.ArchiveOnSave,
 		},
 		Binary: jsonBinary{
 			Data:   s.Binary.Data,
@@ -217,10 +219,11 @@ func jsonToState(js *jsonState) (*state.State, error) {
 	s := &state.State{
 		Version: js.Version,
 		Metadata: state.Metadata{
-			Created:     created,
-			Modified:    modified,
-			SourceFile:  js.Metadata.SourceFile,
-			Description: js.Metadata.Description,
+			Created:       created,
+			Modified:      modified,
+			SourceFile:    js.Metadata.SourceFile,
+			Description:   js.Metadata.Description,
+			ArchiveOnSave: js.Metadata.ArchiveOnSave,
 		},
 		Binary: binary.Binary{
 			Data:   js.Binary.Data,

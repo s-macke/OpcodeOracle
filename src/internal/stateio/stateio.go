@@ -5,6 +5,8 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"path/filepath"
+	"strings"
 	"time"
 
 	"opcodeoracle/internal/state"
@@ -57,6 +59,12 @@ func Load(path string) (*state.State, error) {
 
 // Save writes the state to a JSON file.
 func Save(s *state.State, path string) error {
+	if s.Metadata.ArchiveOnSave {
+		if err := archiveExistingStateFile(path); err != nil {
+			return err
+		}
+	}
+
 	s.Metadata.Modified = time.Now().UTC()
 
 	js := stateToJSON(s)
@@ -71,4 +79,43 @@ func Save(s *state.State, path string) error {
 	}
 
 	return nil
+}
+
+func archiveExistingStateFile(path string) error {
+	existingData, err := os.ReadFile(path)
+	if err != nil {
+		if errors.Is(err, os.ErrNotExist) {
+			return nil
+		}
+		return fmt.Errorf("reading existing state for archive: %w", err)
+	}
+
+	dir := filepath.Dir(path)
+	archiveDir := filepath.Join(dir, "archive")
+	if err := os.MkdirAll(archiveDir, 0755); err != nil {
+		return fmt.Errorf("creating archive directory: %w", err)
+	}
+
+	base := filepath.Base(path)
+	base = strings.TrimSuffix(base, filepath.Ext(base))
+	timestamp := time.Now().UTC().Format("20060102T150405.000000000Z")
+	baseName := fmt.Sprintf("%s_%s", base, timestamp)
+
+	for i := 0; ; i++ {
+		name := baseName
+		if i > 0 {
+			name = fmt.Sprintf("%s_%d", baseName, i)
+		}
+		archivePath := filepath.Join(archiveDir, name+".opcodeoracle.json")
+		if _, err := os.Stat(archivePath); err == nil {
+			continue
+		} else if !errors.Is(err, os.ErrNotExist) {
+			return fmt.Errorf("checking archive filename: %w", err)
+		}
+
+		if err := os.WriteFile(archivePath, existingData, 0644); err != nil {
+			return fmt.Errorf("writing archive file: %w", err)
+		}
+		return nil
+	}
 }
