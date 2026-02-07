@@ -412,36 +412,18 @@ func (m *mockBoundaries) InstructionAddresses() []uint16 {
 	return addrs
 }
 
-func TestDisassembleAddressOutOfRange(t *testing.T) {
+func TestDisassembleOutsideBinaryRangeAsUnknown(t *testing.T) {
 	data := []byte{0xEA}
 	s := state.NewState(data, 0x0800, nil, "test.prg")
 
 	d := NewDisassembler(s, nil)
 
-	// Test start address out of range
-	_, err := d.Disassemble(0x0700, 0x0701)
-	if !errors.Is(err, ErrAddressOutOfRange) {
-		t.Errorf("Expected ErrAddressOutOfRange for invalid start, got: %v", err)
+	output, err := d.Disassemble(0x0700, 0x0703)
+	if err != nil {
+		t.Fatalf("Disassemble outside binary range should succeed, got: %v", err)
 	}
-	var addrErr *AddressOutOfRangeError
-	if !errors.As(err, &addrErr) {
-		t.Fatalf("Expected AddressOutOfRangeError, got: %v", err)
-	}
-	if addrErr.Address != 0x0700 {
-		t.Errorf("Expected address 0x0700, got: 0x%04X", addrErr.Address)
-	}
-
-	// Test end address out of range
-	_, err = d.Disassemble(0x0800, 0x0900)
-	if !errors.Is(err, ErrAddressOutOfRange) {
-		t.Errorf("Expected ErrAddressOutOfRange for invalid end, got: %v", err)
-	}
-	if !errors.As(err, &addrErr) {
-		t.Fatalf("Expected AddressOutOfRangeError, got: %v", err)
-	}
-	// End is exclusive, so invalid end is 0x08FF (0x0900-1)
-	if addrErr.Address != 0x08FF {
-		t.Errorf("Expected address 0x08FF (end-1), got: 0x%04X", addrErr.Address)
+	if !strings.Contains(output, "UNKNOWN REGION: no backing binary data") {
+		t.Errorf("Output should contain unknown-region marker, got:\n%s", output)
 	}
 }
 
@@ -462,6 +444,91 @@ func TestDisassembleInvalidRange(t *testing.T) {
 	}
 	if rangeErr.Start != 0x0802 || rangeErr.End != 0x0800 {
 		t.Errorf("Expected start=0x0802 end=0x0800, got: start=0x%04X end=0x%04X", rangeErr.Start, rangeErr.End)
+	}
+}
+
+func TestDisassembleMixedKnownAndUnknown(t *testing.T) {
+	data := []byte{0xEA, 0x60} // 0x0800: NOP, 0x0801: RTS
+	s := state.NewState(data, 0x0800, nil, "test.prg")
+	s.Regions.Set(0x0800, 0x0801, regions.RegionCode)
+
+	d := NewDisassembler(s, nil)
+	output, err := d.Disassemble(0x07FF, 0x0803)
+	if err != nil {
+		t.Fatalf("Disassemble failed: %v", err)
+	}
+
+	if !strings.Contains(output, "$07FF") || !strings.Contains(output, "UNKNOWN REGION: no backing binary data") {
+		t.Errorf("Output should contain unknown region at $07FF, got:\n%s", output)
+	}
+	if !strings.Contains(output, "NOP") || !strings.Contains(output, "RTS") {
+		t.Errorf("Output should contain code in binary-backed region, got:\n%s", output)
+	}
+	if !strings.Contains(output, "$0802") {
+		t.Errorf("Output should contain unknown region at $0802, got:\n%s", output)
+	}
+}
+
+func TestDisassembleUnknownRegionWithSymbol(t *testing.T) {
+	data := []byte{0xEA} // 0x0800 only
+	s := state.NewState(data, 0x0800, nil, "test.prg")
+	s.Symbols.Add(0x0900, symbols.Symbol{
+		Name:   "OUTSIDE_LABEL",
+		Type:   symbols.SymbolLabel,
+		Source: symbols.SourceUser,
+	})
+
+	d := NewDisassembler(s, nil)
+	output, err := d.Disassemble(0x0900, 0x0901)
+	if err != nil {
+		t.Fatalf("Disassemble failed: %v", err)
+	}
+
+	if !strings.Contains(output, "OUTSIDE_LABEL:") {
+		t.Errorf("Output should contain symbol label in unknown region, got:\n%s", output)
+	}
+	if !strings.Contains(output, "UNKNOWN REGION: no backing binary data") {
+		t.Errorf("Output should contain unknown-region marker, got:\n%s", output)
+	}
+}
+
+func TestDisassembleUnknownWhenCodeRegionHasNoByte(t *testing.T) {
+	data := []byte{0xEA} // Only $0800 has data
+	s := state.NewState(data, 0x0800, nil, "test.prg")
+	s.Regions.Set(0x0900, 0x0900, regions.RegionCode)
+
+	d := NewDisassembler(s, nil)
+	output, err := d.Disassemble(0x0900, 0x0901)
+	if err != nil {
+		t.Fatalf("Disassemble failed: %v", err)
+	}
+
+	if !strings.Contains(output, "UNKNOWN REGION: no backing binary data") {
+		t.Errorf("Output should contain unknown-region marker, got:\n%s", output)
+	}
+}
+
+func TestDisassembleUnknownSpanBreaksAtSymbol(t *testing.T) {
+	data := []byte{0xEA} // Only $0800 is backed
+	s := state.NewState(data, 0x0800, nil, "test.prg")
+	s.Symbols.Add(0x07F2, symbols.Symbol{
+		Name:   "GAP_MARK",
+		Type:   symbols.SymbolLabel,
+		Source: symbols.SourceUser,
+	})
+
+	d := NewDisassembler(s, nil)
+	output, err := d.Disassemble(0x07F0, 0x07F4)
+	if err != nil {
+		t.Fatalf("Disassemble failed: %v", err)
+	}
+
+	unknownCount := strings.Count(output, "UNKNOWN REGION: no backing binary data")
+	if unknownCount != 2 {
+		t.Errorf("Expected unknown region to split at symbol boundary (2 markers), got %d in:\n%s", unknownCount, output)
+	}
+	if !strings.Contains(output, "GAP_MARK:") {
+		t.Errorf("Output should contain symbol label at split point, got:\n%s", output)
 	}
 }
 
@@ -841,10 +908,12 @@ func TestIntegrationWithStateFile(t *testing.T) {
 
 	// Disassemble a small range
 	start := s.Binary.Start()
-	end := start + 50
-	if end > s.Binary.End()+1 {
-		end = s.Binary.End() + 1
+	end32 := uint32(start) + 50
+	maxExclusive := uint32(s.Binary.End()) + 1
+	if end32 > maxExclusive {
+		end32 = maxExclusive
 	}
+	end := uint16(end32)
 
 	output, err := d.Disassemble(start, end)
 	if err != nil {

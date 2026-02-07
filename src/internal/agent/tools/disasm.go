@@ -73,17 +73,6 @@ func (t *ViewDisassemblyTool) InvokableRun(_ context.Context, argumentsInJSON st
 		}
 	}
 
-	// Clamp to binary bounds
-	binaryStart := t.ctx.State.Binary.Start()
-	binaryEnd := t.ctx.State.Binary.End()
-
-	if startAddr < binaryStart {
-		startAddr = binaryStart
-	}
-	if endAddr > binaryEnd {
-		endAddr = binaryEnd
-	}
-
 	if startAddr > endAddr {
 		return fmt.Sprintf("Error: start address ($%04X) is greater than end address ($%04X)", startAddr, endAddr), nil
 	}

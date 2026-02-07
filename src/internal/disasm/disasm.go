@@ -37,28 +37,6 @@ func NewDisassembler(s *state.State, boundaries analysis.InstructionBoundaries) 
 
 // Disassemble formats the address range [start, end) as assembly text.
 func (d *disassembler) Disassemble(start, end uint16) (string, error) {
-	// Calculate binary bounds
-	origin := d.state.Binary.Start()
-	binaryEnd := d.state.Binary.End()
-
-	// Validate start address
-	if start < origin || start > binaryEnd {
-		return "", &AddressOutOfRangeError{
-			Address:    start,
-			RangeStart: origin,
-			RangeEnd:   binaryEnd,
-		}
-	}
-
-	// Validate end address (end is exclusive, so check end-1)
-	if end > start && (end-1 < origin || end-1 > binaryEnd) {
-		return "", &AddressOutOfRangeError{
-			Address:    end - 1,
-			RangeStart: origin,
-			RangeEnd:   binaryEnd,
-		}
-	}
-
 	// Validate range order
 	if start > end {
 		return "", &InvalidRangeError{Start: start, End: end}
@@ -69,6 +47,13 @@ func (d *disassembler) Disassemble(start, end uint16) (string, error) {
 	needsBlankLine := false
 
 	for addr < end {
+		if !d.hasBinaryByte(addr) {
+			output, size := d.formatUnknownSpan(addr, end, &needsBlankLine)
+			sb.WriteString(output)
+			addr += uint16(size)
+			continue
+		}
+
 		regionType := d.state.Regions.At(addr)
 
 		if regionType == regions.RegionCode {
@@ -86,6 +71,11 @@ func (d *disassembler) Disassemble(start, end uint16) (string, error) {
 	}
 
 	return sb.String(), nil
+}
+
+func (d *disassembler) hasBinaryByte(addr uint16) bool {
+	offset := int(addr) - int(d.state.Binary.Origin)
+	return offset >= 0 && offset < len(d.state.Binary.Data)
 }
 
 // getSymbol returns the symbol at addr, if any.

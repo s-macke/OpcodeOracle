@@ -66,14 +66,21 @@ func cmdDisasm(c *cli.Context) error {
 	// Create disassembler with boundaries for mid-instruction checking
 	d := disasm.NewDisassembler(s, analyzer)
 
-	// Disassemble (end is exclusive in the API, so add 1)
-	output, err := d.Disassemble(start, end+1)
+	// Disassemble (end is inclusive in CLI, exclusive in API).
+	output, err := d.Disassemble(start, inclusiveToExclusiveEnd(end))
 	if err != nil {
 		return cli.Exit("error: "+err.Error(), ExitDisasmError)
 	}
 
 	fmt.Print(output)
 	return nil
+}
+
+func inclusiveToExclusiveEnd(end uint16) uint16 {
+	if end == 0xFFFF {
+		return 0xFFFF
+	}
+	return end + 1
 }
 
 // parseAddress parses an address string in various formats:

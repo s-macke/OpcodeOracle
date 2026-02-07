@@ -50,7 +50,7 @@ func (e *Exporter) Export(path string) error {
 		sb.WriteString(sectionTitle(seg) + "\n\n")
 
 		// Disassembled content
-		content, err := e.disasm.Disassemble(seg.Start, seg.End+1)
+		content, err := e.disasm.Disassemble(seg.Start, inclusiveToExclusiveEnd(seg.End))
 		if err != nil {
 			return fmt.Errorf("disassembling segment at $%04X: %w", seg.Start, err)
 		}
@@ -70,6 +70,13 @@ func (e *Exporter) Export(path string) error {
 	}
 
 	return nil
+}
+
+func inclusiveToExclusiveEnd(end uint16) uint16 {
+	if end == 0xFFFF {
+		return 0xFFFF
+	}
+	return end + 1
 }
 
 // exportBinary writes the raw binary data to a .bin file next to the .asm file.

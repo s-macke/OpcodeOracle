@@ -38,8 +38,11 @@ func NewDisassembler(state State) Disassembler
 
 | Condition                          | Error                  |
 |------------------------------------|------------------------|
-| Start or end outside binary bounds | `ErrAddressOutOfRange` |
 | Invalid/illegal opcode encountered | `ErrIllegalOpcode`     |
+| Start is greater than end          | `ErrInvalidRange`      |
+
+Addresses outside the loaded binary are disassembled as unknown regions instead of returning an error.
+If a symbol exists at an unknown address, it is still displayed as a normal label.
 
 ## Addressing Modes
 
