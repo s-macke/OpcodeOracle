@@ -38,6 +38,8 @@ const (
 
 	instructionCommentCol = 38
 	dataAsciiCol          = leftColumnWidth + len(".BYTE ") + maxDataHexWidth + minCommentGapWidth
+
+	codeInstrIndent = 4
 )
 
 // NewDisassembler creates a disassembler that reads from the given state.

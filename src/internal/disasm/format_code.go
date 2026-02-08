@@ -52,12 +52,16 @@ func (d *disassembler) formatCodeAt(addr uint16, needsBlankLine *bool) (string, 
 		operand[i] = b
 	}
 
-	// Format left column (address + optional label).
+	// Resolve optional label at the instruction address.
 	label := ""
 	if sym, ok := d.getSymbol(addr); ok {
 		label = sym.Name
 	}
-	labelCol := formatCodeLeftColumn(addr, label)
+	labelCol := strings.Repeat(" ", codeInstrIndent)
+	if label != "" {
+		// Labeled code uses a separate label line for readability.
+		sb.WriteString(formatAddressOrLabelColumn(addr, label) + "\n")
+	}
 
 	// Format mnemonic
 	mnemonic := def.Op.String()

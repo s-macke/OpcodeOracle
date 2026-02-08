@@ -86,6 +86,24 @@ func TestDisassembleWithLabels(t *testing.T) {
 	if !strings.Contains(output, "JMP") {
 		t.Errorf("Output should contain JMP, got:\n%s", output)
 	}
+
+	lines := strings.Split(output, "\n")
+	labelLineIdx := -1
+	instrLineIdx := -1
+	for i, line := range lines {
+		if strings.Contains(line, "MAIN:") {
+			labelLineIdx = i
+		}
+		if strings.Contains(line, "JMP $0800") {
+			instrLineIdx = i
+		}
+	}
+	if labelLineIdx == -1 || instrLineIdx == -1 {
+		t.Fatalf("Expected separate label and instruction lines, got:\n%s", output)
+	}
+	if instrLineIdx != labelLineIdx+1 {
+		t.Errorf("Instruction line should immediately follow label line, got:\n%s", output)
+	}
 }
 
 func TestDisassembleBranch(t *testing.T) {
@@ -647,6 +665,14 @@ func TestInstructionCommentColumnAlignment(t *testing.T) {
 	output, err := d.Disassemble(0x0800, 0x0804)
 	if err != nil {
 		t.Fatalf("Disassemble failed: %v", err)
+	}
+
+	labelOnlyLine := findLineContaining(output, "MAIN:")
+	if labelOnlyLine == "" {
+		t.Fatalf("Missing label-only line in output:\n%s", output)
+	}
+	if strings.Contains(labelOnlyLine, "LDA #$00") {
+		t.Fatalf("Label line should not contain instruction text, got:\n%s", labelOnlyLine)
 	}
 
 	labeledLine := findLineContaining(output, "LDA #$00")
