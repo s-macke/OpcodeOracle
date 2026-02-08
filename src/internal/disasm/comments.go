@@ -73,14 +73,14 @@ func splitInlineComments(inlines []inlineAnnotation) []string {
 	return commentLines
 }
 
-func writeInstructionWithComments(sb *strings.Builder, line, firstComment string, continuation []string) {
-	if firstComment == "" {
+func writeInstructionWithComments(sb *strings.Builder, line string, comments []string) {
+	if len(comments) == 0 {
 		sb.WriteString(line + "\n")
 		return
 	}
 
-	sb.WriteString(padToColumn(line, instructionCommentCol) + "; " + firstComment + "\n")
-	for _, comment := range continuation {
+	sb.WriteString(padToColumn(line, instructionCommentCol) + "; " + comments[0] + "\n")
+	for _, comment := range comments[1:] {
 		sb.WriteString(padToColumn("", instructionCommentCol) + "; " + comment + "\n")
 	}
 }

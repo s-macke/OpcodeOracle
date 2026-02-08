@@ -29,11 +29,10 @@ func (d *disassembler) formatUnknownAt(addr, spanEnd uint16) string {
 		sb.WriteString("; " + xref + "\n")
 	}
 
-	label := ""
+	labelCol := formatAddressColumn(addr)
 	if sym, ok := d.getSymbol(addr); ok {
-		label = sym.Name
+		labelCol = formatAddressOrLabelColumn(addr, sym.Name)
 	}
-	labelCol := formatAddressOrLabelColumn(addr, label)
 
 	comment := unknownRegionComment
 	if spanEnd > addr+1 {
@@ -41,7 +40,8 @@ func (d *disassembler) formatUnknownAt(addr, spanEnd uint16) string {
 	}
 
 	inlineLines := d.getInlineCommentLines(addr, addr+1)
-	writeInstructionWithComments(&sb, labelCol, comment, inlineLines)
+	comments := append([]string{comment}, inlineLines...)
+	writeInstructionWithComments(&sb, labelCol, comments)
 
 	return sb.String()
 }

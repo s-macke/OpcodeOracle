@@ -40,14 +40,14 @@ func (d *disassembler) formatCodeAt(addr uint16) (string, int, error) {
 		return "", 0, err
 	}
 
-	// Resolve optional label at the instruction address.
-	label := ""
-	if sym, ok := d.getSymbol(addr); ok {
-		label = sym.Name
-	}
 	labelCol := strings.Repeat(" ", codeInstrIndent)
+
 	xrefComments := d.formatXRefs(addr)
-	xrefComments = d.writeCodeLabelLine(&sb, addr, label, xrefComments)
+	if sym, ok := d.getSymbol(addr); ok {
+		writeLabeledCodeLine(&sb, addr, sym.Name, xrefComments)
+		// Label-related xrefs are attached to the label line.
+		xrefComments = nil
+	}
 
 	// Format mnemonic
 	mnemonic := def.Op.String()
@@ -57,24 +57,19 @@ func (d *disassembler) formatCodeAt(addr uint16) (string, int, error) {
 
 	// Build the instruction line
 	line := labelCol + mnemonic + operandStr
-	operandXRefs := d.formatOperandXRefs(addr, def.OperandSize())
 
+	operandXRefs := d.formatOperandXRefs(addr, def.OperandSize())
 	// Collect all annotation lines (handling multi-line comments)
 	annotationLines := d.getInlineCommentLines(addr, instrEnd)
 
-	firstComment, continuation, operandXRefs := chooseInstructionComments(
+	comments := chooseInstructionComments(
 		operandSymbol,
 		annotationLines,
 		xrefComments,
 		operandXRefs,
 	)
 
-	writeInstructionWithComments(&sb, line, firstComment, continuation)
-
-	// Output operand xrefs (self-modifying code references)
-	for _, oxref := range operandXRefs {
-		sb.WriteString(padToColumn("", instructionCommentCol) + "; " + oxref + "\n")
-	}
+	writeInstructionWithComments(&sb, line, comments)
 
 	return sb.String(), def.Size, nil
 }
@@ -91,24 +86,9 @@ func (d *disassembler) readOperandBytes(addr uint16, operandSize int) ([]byte, e
 	return operand, nil
 }
 
-// writeCodeLabelLine prints the label line for code, including label-related xrefs.
-// It returns xrefs that should still be attached to instruction-level comments.
-func (d *disassembler) writeCodeLabelLine(sb *strings.Builder, addr uint16, label string, xrefComments []string) []string {
-	if label == "" {
-		return xrefComments
-	}
-
+func writeLabeledCodeLine(sb *strings.Builder, addr uint16, label string, comments []string) {
 	labelLine := formatAddressOrLabelColumn(addr, label)
-	labelXRef := ""
-	labelXRefContinuation := []string(nil)
-	if len(xrefComments) > 0 {
-		labelXRef = xrefComments[0]
-		labelXRefContinuation = xrefComments[1:]
-		// Label-related xrefs are attached to the label line.
-		xrefComments = nil
-	}
-	writeInstructionWithComments(sb, labelLine, labelXRef, labelXRefContinuation)
-	return xrefComments
+	writeInstructionWithComments(sb, labelLine, comments)
 }
 
 func chooseInstructionComments(
@@ -116,32 +96,17 @@ func chooseInstructionComments(
 	annotationLines []string,
 	xrefComments []string,
 	operandXRefs []string,
-) (string, []string, []string) {
-	var firstComment string
-	var continuation []string
+) []string {
+	var comments []string
 
-	switch {
-	case operandSymbol != "":
-		firstComment = operandSymbol
-		continuation = append(continuation, annotationLines...)
-		continuation = append(continuation, xrefComments...)
-	case len(annotationLines) > 0:
-		firstComment = annotationLines[0]
-		continuation = append(continuation, annotationLines[1:]...)
-		continuation = append(continuation, xrefComments...)
-	case len(xrefComments) > 0:
-		firstComment = xrefComments[0]
-		continuation = append(continuation, xrefComments[1:]...)
+	if operandSymbol != "" {
+		comments = append(comments, operandSymbol)
 	}
+	comments = append(comments, annotationLines...)
+	comments = append(comments, xrefComments...)
+	comments = append(comments, operandXRefs...)
 
-	// If there are only operand xrefs, use the first as the inline comment.
-	if firstComment == "" && len(operandXRefs) > 0 {
-		firstComment = operandXRefs[0]
-		continuation = append(continuation, operandXRefs[1:]...)
-		operandXRefs = nil
-	}
-
-	return firstComment, continuation, operandXRefs
+	return comments
 }
 
 // formatMidInstructionAt handles a mid-instruction address by outputting a warning
