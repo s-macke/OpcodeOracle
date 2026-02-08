@@ -69,7 +69,7 @@ func (d *disassembler) formatLabeledByte(addr uint16, label string, inlineLines 
 	}
 	// Format as labeled .BYTE
 	b, _ := d.state.Binary.ReadByte(addr)
-	line := fmt.Sprintf("$%04X %-18s.BYTE $%02X", addr, label+":", b)
+	line := formatAddressOrLabelColumn(addr, label) + fmt.Sprintf(".BYTE $%02X", b)
 	if len(inlineLines) > 0 {
 		line = padToColumn(line, instructionCommentCol) + "; " + inlineLines[0]
 		sb.WriteString(line + "\n")
@@ -107,9 +107,8 @@ func (d *disassembler) formatDataRow(addr uint16, chunkSize int) string {
 	// Build ASCII representation
 	ascii := toASCII(bytes)
 
-	// Format: $XXXX padded to 24 chars, then .BYTE hex  ; "ASCII"
-	// Column 95 = 24 (label) + 6 (.BYTE ) + 63 (max 16 bytes hex) + 2 (spacing)
-	line := fmt.Sprintf("$%04X                   .BYTE %s", addr, hexStr)
+	// Format: left column, then .BYTE hex, then ASCII comment.
+	line := formatAddressColumn(addr) + fmt.Sprintf(".BYTE %s", hexStr)
 	line = padToColumn(line, dataAsciiCol)
 	line += fmt.Sprintf("; \"%s\"", ascii)
 

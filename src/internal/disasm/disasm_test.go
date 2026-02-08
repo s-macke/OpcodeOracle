@@ -492,6 +492,95 @@ func TestDisassembleUnknownRegionWithSymbol(t *testing.T) {
 	}
 }
 
+func TestInstructionCommentColumnAlignment(t *testing.T) {
+	data := []byte{
+		0xA9, 0x00, // LDA #$00
+		0xA9, 0x01, // LDA #$01
+	}
+	s := state.NewState(data, 0x0800, nil, "test.prg")
+	s.Regions.Set(0x0800, 0x0803, regions.RegionCode)
+	s.Symbols.Add(0x0800, symbols.Symbol{
+		Name:   "MAIN",
+		Type:   symbols.SymbolLabel,
+		Source: symbols.SourceUser,
+	})
+	s.Annotations.Set(0x0800, "with label", author.User)
+	s.Annotations.Set(0x0802, "without label", author.Assistant)
+
+	d := NewDisassembler(s, nil)
+	output, err := d.Disassemble(0x0800, 0x0804)
+	if err != nil {
+		t.Fatalf("Disassemble failed: %v", err)
+	}
+
+	labeledLine := findLineContaining(output, "LDA #$00")
+	if labeledLine == "" {
+		t.Fatalf("Missing labeled instruction line in output:\n%s", output)
+	}
+	unlabeledLine := findLineContaining(output, "LDA #$01")
+	if unlabeledLine == "" {
+		t.Fatalf("Missing unlabeled instruction line in output:\n%s", output)
+	}
+
+	if got := strings.Index(labeledLine, ";"); got != instructionCommentCol {
+		t.Errorf("Labeled instruction comment column = %d, want %d. Line: %q", got, instructionCommentCol, labeledLine)
+	}
+	if got := strings.Index(unlabeledLine, ";"); got != instructionCommentCol {
+		t.Errorf("Unlabeled instruction comment column = %d, want %d. Line: %q", got, instructionCommentCol, unlabeledLine)
+	}
+}
+
+func TestDataASCIIColumnAlignment(t *testing.T) {
+	data := []byte{0x48, 0x45, 0x4C, 0x4C, 0x4F}
+	s := state.NewState(data, 0x0900, nil, "test.prg")
+
+	d := NewDisassembler(s, nil)
+	output, err := d.Disassemble(0x0900, 0x0905)
+	if err != nil {
+		t.Fatalf("Disassemble failed: %v", err)
+	}
+
+	line := findLineContaining(output, ".BYTE")
+	if line == "" {
+		t.Fatalf("Missing data line in output:\n%s", output)
+	}
+	if got := strings.Index(line, ";"); got != dataAsciiCol {
+		t.Errorf("Data ASCII comment column = %d, want %d. Line: %q", got, dataAsciiCol, line)
+	}
+}
+
+func TestUnknownRegionCommentColumnAlignment(t *testing.T) {
+	data := []byte{0xEA}
+	s := state.NewState(data, 0x0800, nil, "test.prg")
+	s.Symbols.Add(0x0901, symbols.Symbol{
+		Name:   "OUTSIDE_LABEL",
+		Type:   symbols.SymbolLabel,
+		Source: symbols.SourceUser,
+	})
+
+	d := NewDisassembler(s, nil)
+	output, err := d.Disassemble(0x0900, 0x0902)
+	if err != nil {
+		t.Fatalf("Disassemble failed: %v", err)
+	}
+
+	unlabeledLine := findLineContaining(output, "$0900")
+	if unlabeledLine == "" {
+		t.Fatalf("Missing unknown-region line without label in output:\n%s", output)
+	}
+	if got := strings.Index(unlabeledLine, ";"); got != instructionCommentCol {
+		t.Errorf("Unknown-region unlabeled comment column = %d, want %d. Line: %q", got, instructionCommentCol, unlabeledLine)
+	}
+
+	labeledLine := findLineContaining(output, "OUTSIDE_LABEL:")
+	if labeledLine == "" {
+		t.Fatalf("Missing unknown-region line with label in output:\n%s", output)
+	}
+	if got := strings.Index(labeledLine, ";"); got != instructionCommentCol {
+		t.Errorf("Unknown-region labeled comment column = %d, want %d. Line: %q", got, instructionCommentCol, labeledLine)
+	}
+}
+
 func TestDisassembleUnknownWhenCodeRegionHasNoByte(t *testing.T) {
 	data := []byte{0xEA} // Only $0800 has data
 	s := state.NewState(data, 0x0800, nil, "test.prg")
@@ -506,6 +595,15 @@ func TestDisassembleUnknownWhenCodeRegionHasNoByte(t *testing.T) {
 	if !strings.Contains(output, "UNKNOWN REGION: no backing binary data") {
 		t.Errorf("Output should contain unknown-region marker, got:\n%s", output)
 	}
+}
+
+func findLineContaining(output, needle string) string {
+	for _, line := range strings.Split(output, "\n") {
+		if strings.Contains(line, needle) {
+			return line
+		}
+	}
+	return ""
 }
 
 func TestDisassembleUnknownSpanBreaksAtSymbol(t *testing.T) {

@@ -52,19 +52,12 @@ func (d *disassembler) formatCodeAt(addr uint16, needsBlankLine *bool) (string, 
 		operand[i] = b
 	}
 
-	// Format label column (24 chars total)
+	// Format left column (address + optional label).
 	label := ""
 	if sym, ok := d.getSymbol(addr); ok {
 		label = sym.Name
 	}
-	var labelCol string
-	if label != "" {
-		// With label: $XXXX label: padded to 24 chars (5 + 1 + 18 = 24)
-		labelCol = fmt.Sprintf("$%04X %-18s", addr, label+":")
-	} else {
-		// No label: 24 spaces
-		labelCol = "                        "
-	}
+	labelCol := formatCodeLeftColumn(addr, label)
 
 	// Format mnemonic
 	mnemonic := def.Op.String()
@@ -132,7 +125,7 @@ func (d *disassembler) formatMidInstructionAt(addr uint16, needsBlankLine *bool)
 
 	// Read and output the byte as data
 	b, _ := d.state.Binary.ReadByte(addr)
-	sb.WriteString(fmt.Sprintf("$%04X                   .BYTE $%02X\n", addr, b))
+	sb.WriteString(formatAddressColumn(addr) + fmt.Sprintf(".BYTE $%02X\n", b))
 
 	*needsBlankLine = true
 	return sb.String()

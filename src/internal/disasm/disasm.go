@@ -23,6 +23,11 @@ type disassembler struct {
 }
 
 const (
+	// Left column layout for address/label prefix in code/data/unknown output.
+	addressWidth    = 5  // "$XXXX"
+	labelFieldWidth = 18 // "label:" padded field
+	leftColumnWidth = 24 // address + space + label field
+
 	instructionCommentCol = 38
 	dataAsciiCol          = 95
 )
