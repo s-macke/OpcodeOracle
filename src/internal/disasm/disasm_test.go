@@ -114,8 +114,8 @@ func TestDisassembleBranch(t *testing.T) {
 	if !strings.Contains(output, "BNE $0805") {
 		t.Errorf("Output should contain BNE $0805, got:\n%s", output)
 	}
-	if !strings.Contains(output, "; L_0805") {
-		t.Errorf("Output should contain ; L_0805 comment, got:\n%s", output)
+	if !strings.Contains(output, "; Branch to L_0805") {
+		t.Errorf("Output should contain ; Branch to L_0805 comment, got:\n%s", output)
 	}
 }
 
@@ -143,8 +143,8 @@ func TestDisassembleBackwardsBranch(t *testing.T) {
 	if !strings.Contains(output, "BNE $0800") {
 		t.Errorf("Output should contain BNE $0800 for backwards branch, got:\n%s", output)
 	}
-	if !strings.Contains(output, "; LOOP") {
-		t.Errorf("Output should contain ; LOOP comment, got:\n%s", output)
+	if !strings.Contains(output, "; Branch to LOOP") {
+		t.Errorf("Output should contain ; Branch to LOOP comment, got:\n%s", output)
 	}
 }
 
@@ -171,8 +171,8 @@ func TestDisassembleBranchWithSymbolAndAnnotation(t *testing.T) {
 	}
 
 	// Check that branch shows symbol in first comment
-	if !strings.Contains(output, "; loop_start") {
-		t.Errorf("Output should contain ; loop_start comment, got:\n%s", output)
+	if !strings.Contains(output, "; Branch to loop_start") {
+		t.Errorf("Output should contain ; Branch to loop_start comment, got:\n%s", output)
 	}
 	// Check that annotation is also present
 	if !strings.Contains(output, "; Loop until X is zero") {
@@ -183,8 +183,8 @@ func TestDisassembleBranchWithSymbolAndAnnotation(t *testing.T) {
 	lines := strings.Split(output, "\n")
 	for _, line := range lines {
 		if strings.Contains(line, "BNE") {
-			if !strings.Contains(line, "; loop_start") {
-				t.Errorf("BNE line should have symbol comment on same line, got:\n%s", line)
+			if !strings.Contains(line, "; Branch to loop_start") {
+				t.Errorf("BNE line should have branch symbol comment on same line, got:\n%s", line)
 			}
 			if strings.Contains(line, "Loop until X is zero") {
 				t.Errorf("Annotation should NOT be on the same line as BNE instruction, got:\n%s", line)
@@ -229,6 +229,128 @@ func TestDisassembleZeroPageSymbolComment(t *testing.T) {
 			}
 			break
 		}
+	}
+}
+
+func TestDisassembleJSRUsesNumericOperandAndSymbolComment(t *testing.T) {
+	data := []byte{
+		0x20, 0x05, 0x08, // JSR $0805
+		0xEA, 0xEA, // padding
+		0x60, // RTS at $0805
+	}
+	s := state.NewState(data, 0x0800, nil, "test.prg")
+	s.Regions.Set(0x0800, 0x0805, regions.RegionCode)
+	s.Symbols.Add(0x0805, symbols.Symbol{
+		Name:   "TARGET_SUB",
+		Type:   symbols.SymbolSubroutine,
+		Source: symbols.SourceUser,
+	})
+
+	d := NewDisassembler(s, nil)
+	output, err := d.Disassemble(0x0800, 0x0806)
+	if err != nil {
+		t.Fatalf("Disassemble failed: %v", err)
+	}
+
+	if !strings.Contains(output, "JSR $0805") {
+		t.Errorf("Output should contain numeric JSR operand, got:\n%s", output)
+	}
+	if !strings.Contains(output, "; Call TARGET_SUB") {
+		t.Errorf("Output should contain Call TARGET_SUB as comment, got:\n%s", output)
+	}
+	if strings.Contains(output, "JSR TARGET_SUB") {
+		t.Errorf("Output should not replace JSR operand with symbol name, got:\n%s", output)
+	}
+}
+
+func TestDisassembleJMPUsesNumericOperandAndSymbolComment(t *testing.T) {
+	data := []byte{
+		0x4C, 0x03, 0x08, // JMP $0803
+		0x60, // RTS at $0803
+	}
+	s := state.NewState(data, 0x0800, nil, "test.prg")
+	s.Regions.Set(0x0800, 0x0803, regions.RegionCode)
+	s.Symbols.Add(0x0803, symbols.Symbol{
+		Name:   "LOOP",
+		Type:   symbols.SymbolLabel,
+		Source: symbols.SourceUser,
+	})
+
+	d := NewDisassembler(s, nil)
+	output, err := d.Disassemble(0x0800, 0x0804)
+	if err != nil {
+		t.Fatalf("Disassemble failed: %v", err)
+	}
+
+	if !strings.Contains(output, "JMP $0803") {
+		t.Errorf("Output should contain numeric JMP operand, got:\n%s", output)
+	}
+	if !strings.Contains(output, "; Jump to LOOP") {
+		t.Errorf("Output should contain Jump to LOOP as comment, got:\n%s", output)
+	}
+	if strings.Contains(output, "JMP LOOP") {
+		t.Errorf("Output should not replace JMP operand with symbol name, got:\n%s", output)
+	}
+}
+
+func TestDisassembleJSRJMPWithoutSymbolRemainNumeric(t *testing.T) {
+	data := []byte{
+		0x20, 0x05, 0x08, // JSR $0805
+		0x4C, 0x00, 0x08, // JMP $0800
+	}
+	s := state.NewState(data, 0x0800, nil, "test.prg")
+	s.Regions.Set(0x0800, 0x0805, regions.RegionCode)
+
+	d := NewDisassembler(s, nil)
+	output, err := d.Disassemble(0x0800, 0x0806)
+	if err != nil {
+		t.Fatalf("Disassemble failed: %v", err)
+	}
+
+	if !strings.Contains(output, "JSR $0805") {
+		t.Errorf("Output should contain numeric JSR operand, got:\n%s", output)
+	}
+	if !strings.Contains(output, "JMP $0800") {
+		t.Errorf("Output should contain numeric JMP operand, got:\n%s", output)
+	}
+}
+
+func TestDisassembleJMPWithSymbolAndAnnotation(t *testing.T) {
+	data := []byte{
+		0x4C, 0x03, 0x08, // JMP $0803
+		0x60, // RTS at $0803
+	}
+	s := state.NewState(data, 0x0800, nil, "test.prg")
+	s.Regions.Set(0x0800, 0x0803, regions.RegionCode)
+	s.Symbols.Add(0x0803, symbols.Symbol{
+		Name:   "LOOP",
+		Type:   symbols.SymbolLabel,
+		Source: symbols.SourceUser,
+	})
+	s.Annotations.Set(0x0800, "jump to loop", author.User)
+
+	d := NewDisassembler(s, nil)
+	output, err := d.Disassemble(0x0800, 0x0804)
+	if err != nil {
+		t.Fatalf("Disassemble failed: %v", err)
+	}
+
+	lines := strings.Split(output, "\n")
+	foundInstrLine := false
+	foundAnnotationLine := false
+	for _, line := range lines {
+		if strings.Contains(line, "JMP $0803") && strings.Contains(line, "; Jump to LOOP") && !strings.Contains(line, "jump to loop") {
+			foundInstrLine = true
+		}
+		if strings.Contains(line, "; jump to loop") && !strings.Contains(line, "JMP $0803") {
+			foundAnnotationLine = true
+		}
+	}
+	if !foundInstrLine {
+		t.Errorf("JMP line should carry symbol comment first, got:\n%s", output)
+	}
+	if !foundAnnotationLine {
+		t.Errorf("Annotation should be on continuation line, got:\n%s", output)
 	}
 }
 

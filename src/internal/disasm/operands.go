@@ -29,22 +29,27 @@ func (d *disassembler) formatOperandWithSymbol(def asm.OpcodeDef, operand []byte
 	if def.Mode == asm.AddrRelative && len(operand) >= 1 {
 		// Always show numeric target address (symbol will be in comment)
 		target := calculateBranchTarget(pc, operand[0])
-		return fmt.Sprintf(" $%04X", target), d.labelAt(target)
+		label := d.labelAt(target)
+		if label == "" {
+			return fmt.Sprintf(" $%04X", target), ""
+		}
+		return fmt.Sprintf(" $%04X", target), "Branch to " + label
 	}
 
-	// JSR and JMP with absolute addressing - resolve to label if available
+	// JSR/JMP with absolute addressing: keep numeric operand, put symbol in comment.
 	if def.Mode == asm.AddrAbsolute && (def.Op == asm.JSR || def.Op == asm.JMP) && len(operand) >= 2 {
 		target := uint16(operand[0]) | uint16(operand[1])<<8
 		label := d.labelAt(target)
-		if label != "" {
-			return " " + label, ""
+		if label == "" {
+			return def.FormatOperand(operand), ""
 		}
+		if def.Op == asm.JSR {
+			return def.FormatOperand(operand), "Call " + label
+		}
+		return def.FormatOperand(operand), "Jump to " + label
 	}
-
 	operandStr := def.FormatOperand(operand)
-	if def.Mode == asm.AddrAbsolute && (def.Op == asm.JSR || def.Op == asm.JMP) {
-		return operandStr, ""
-	}
+
 	if opAddr, ok := getOperandAddress(def.Mode, operand); ok {
 		return operandStr, d.labelAt(opAddr)
 	}
