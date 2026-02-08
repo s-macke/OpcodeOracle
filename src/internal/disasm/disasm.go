@@ -59,11 +59,10 @@ func (d *disassembler) Disassemble(start, end uint16) (string, error) {
 
 	var sb strings.Builder
 	addr := start
-	needsBlankLine := false
 
 	for addr < end {
 		if !d.hasBinaryByte(addr) {
-			output, size := d.formatUnknownSpan(addr, end, &needsBlankLine)
+			output, size := d.formatUnknownSpan(addr, end)
 			sb.WriteString(output)
 			addr += uint16(size)
 			continue
@@ -72,14 +71,14 @@ func (d *disassembler) Disassemble(start, end uint16) (string, error) {
 		regionType := d.state.Regions.At(addr)
 
 		if regionType == regions.RegionCode {
-			output, size, err := d.formatCodeAt(addr, &needsBlankLine)
+			output, size, err := d.formatCodeAt(addr)
 			if err != nil {
 				return sb.String(), err
 			}
 			sb.WriteString(output)
 			addr += uint16(size)
 		} else {
-			output, size := d.formatDataAt(addr, end, &needsBlankLine)
+			output, size := d.formatDataAt(addr, end)
 			sb.WriteString(output)
 			addr += uint16(size)
 		}
@@ -98,9 +97,6 @@ func (d *disassembler) getSymbol(addr uint16) (symbols.Symbol, bool) {
 	return d.state.Symbols.At(addr)
 }
 
-func (d *disassembler) labelAt(addr uint16) string {
-	if sym, ok := d.getSymbol(addr); ok {
-		return sym.Name
-	}
-	return ""
+func (d *disassembler) getSymbolOfTypes(addr uint16, allowed ...symbols.SymbolType) (symbols.Symbol, bool) {
+	return d.state.Symbols.AtOfTypes(addr, allowed...)
 }

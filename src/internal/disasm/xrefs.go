@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"strings"
 
+	"opcodeoracle/internal/symbols"
 	"opcodeoracle/internal/xrefs"
 )
 
@@ -56,8 +57,8 @@ func (d *disassembler) formatOperandXRefs(addr uint16, operandSize int) []string
 
 func (d *disassembler) formatXRefPart(ref xrefs.XRef) string {
 	part := fmt.Sprintf("%s from $%04X", ref.Type, ref.From)
-	if label := d.labelAt(ref.From); label != "" {
-		part += " (" + label + ")"
+	if sym, ok := d.getSymbolOfTypes(ref.From, symbols.SymbolLabel, symbols.SymbolSubroutine, symbols.SymbolEntry); ok {
+		part += " (" + sym.Name + ")"
 	}
 	return part
 }

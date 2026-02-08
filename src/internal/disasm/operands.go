@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	"opcodeoracle/internal/asm"
+	"opcodeoracle/internal/symbols"
 )
 
 // getOperandAddress extracts the target address from an instruction operand.
@@ -29,29 +30,35 @@ func (d *disassembler) formatOperandWithSymbol(def asm.OpcodeDef, operand []byte
 	if def.Mode == asm.AddrRelative && len(operand) >= 1 {
 		// Always show numeric target address (symbol will be in comment)
 		target := calculateBranchTarget(pc, operand[0])
-		label := d.labelAt(target)
-		if label == "" {
+		sym, ok := d.getSymbolOfTypes(target, symbols.SymbolLabel, symbols.SymbolSubroutine, symbols.SymbolEntry)
+		if !ok {
 			return fmt.Sprintf(" $%04X", target), ""
 		}
-		return fmt.Sprintf(" $%04X", target), "Branch to " + label
+		return fmt.Sprintf(" $%04X", target), "Branch to " + sym.Name
 	}
 
 	// JSR/JMP with absolute addressing: keep numeric operand, put symbol in comment.
 	if def.Mode == asm.AddrAbsolute && (def.Op == asm.JSR || def.Op == asm.JMP) && len(operand) >= 2 {
 		target := uint16(operand[0]) | uint16(operand[1])<<8
-		label := d.labelAt(target)
-		if label == "" {
+		allowed := []symbols.SymbolType{symbols.SymbolLabel, symbols.SymbolSubroutine, symbols.SymbolEntry}
+		if def.Op == asm.JSR {
+			allowed = []symbols.SymbolType{symbols.SymbolSubroutine, symbols.SymbolEntry}
+		}
+		sym, ok := d.getSymbolOfTypes(target, allowed...)
+		if !ok {
 			return def.FormatOperand(operand), ""
 		}
 		if def.Op == asm.JSR {
-			return def.FormatOperand(operand), "Call " + label
+			return def.FormatOperand(operand), "Call " + sym.Name
 		}
-		return def.FormatOperand(operand), "Jump to " + label
+		return def.FormatOperand(operand), "Jump to " + sym.Name
 	}
 	operandStr := def.FormatOperand(operand)
 
 	if opAddr, ok := getOperandAddress(def.Mode, operand); ok {
-		return operandStr, d.labelAt(opAddr)
+		if sym, found := d.getSymbolOfTypes(opAddr, symbols.SymbolByte, symbols.SymbolLabel, symbols.SymbolSubroutine, symbols.SymbolEntry); found {
+			return operandStr, sym.Name
+		}
 	}
 	return operandStr, ""
 }

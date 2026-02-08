@@ -45,6 +45,24 @@ func (t *Table) At(addr uint16) (Symbol, bool) {
 	return sym, ok
 }
 
+// AtOfTypes returns the symbol at addr only if its type is in allowed.
+// If allowed is empty, it behaves like At.
+func (t *Table) AtOfTypes(addr uint16, allowed ...SymbolType) (Symbol, bool) {
+	sym, ok := t.At(addr)
+	if !ok {
+		return Symbol{}, false
+	}
+	if len(allowed) == 0 {
+		return sym, true
+	}
+	for _, typ := range allowed {
+		if sym.Type == typ {
+			return sym, true
+		}
+	}
+	return Symbol{}, false
+}
+
 // sourcePriority returns the priority of a symbol source (higher is better).
 func sourcePriority(source SymbolSource) int {
 	switch source {

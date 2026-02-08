@@ -10,18 +10,11 @@ import (
 
 // formatDataAt formats data bytes at the given address.
 // Returns the formatted output and number of bytes consumed.
-func (d *disassembler) formatDataAt(addr, end uint16, needsBlankLine *bool) (string, int) {
+func (d *disassembler) formatDataAt(addr, end uint16) (string, int) {
 	var sb strings.Builder
 
-	// Output headline annotations
-	hdls := d.getHeadlines(addr, addr+1)
-	if len(hdls) > 0 {
-		if *needsBlankLine {
-			sb.WriteString("\n")
-		}
-		sb.WriteString(d.formatHeadlines(hdls))
-		*needsBlankLine = false
-	}
+	// Output headline annotations.
+	d.writeHeadlines(&sb, addr, addr+1)
 
 	// Check for symbol at this address
 	label := ""
@@ -33,12 +26,11 @@ func (d *disassembler) formatDataAt(addr, end uint16, needsBlankLine *bool) (str
 
 	// Get inline annotations
 	inlines := d.getInlineAnnotations(addr, addr+1)
-	inlineLines := splitInlineComments(inlines)
+	inlineLines := d.getInlineCommentLines(addr, addr+1)
 
 	// Check if this is a labeled byte data item (SymbolWord is expanded to _LO/_HI bytes at creation time)
 	if label != "" && symType == symbols.SymbolByte {
 		sb.WriteString(d.formatLabeledByte(addr, label, inlineLines))
-		*needsBlankLine = false
 		return sb.String(), 1
 	}
 
@@ -47,15 +39,11 @@ func (d *disassembler) formatDataAt(addr, end uint16, needsBlankLine *bool) (str
 
 	// For unlabeled data, treat inline annotations as headlines
 	if len(inlines) > 0 {
-		if *needsBlankLine {
-			sb.WriteString("\n")
-		}
+		sb.WriteString("\n")
 		sb.WriteString(d.formatInlinesAsHeadlines(inlines))
-		*needsBlankLine = false
 	}
 
 	sb.WriteString(d.formatDataRow(addr, chunkSize))
-	*needsBlankLine = true
 	return sb.String(), chunkSize
 }
 

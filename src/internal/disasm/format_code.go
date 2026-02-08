@@ -9,11 +9,11 @@ import (
 
 // formatCodeAt formats a single instruction at the given address.
 // Returns the formatted output and instruction size.
-func (d *disassembler) formatCodeAt(addr uint16, needsBlankLine *bool) (string, int, error) {
+func (d *disassembler) formatCodeAt(addr uint16) (string, int, error) {
 	// Check if address is mid-instruction (operand byte)
 	if d.boundaries != nil && d.boundaries.IsInstructionDataAt(addr) {
 		// Output warning comment and byte as data, then continue
-		return d.formatMidInstructionAt(addr, needsBlankLine), 1, nil
+		return d.formatMidInstructionAt(addr), 1, nil
 	}
 
 	var sb strings.Builder
@@ -32,24 +32,12 @@ func (d *disassembler) formatCodeAt(addr uint16, needsBlankLine *bool) (string, 
 	// Now we know the size - collect all headlines within this instruction
 	instrEnd := addr + uint16(def.Size)
 
-	// Output headline annotations (from all bytes of instruction)
-	hdls := d.getHeadlines(addr, instrEnd)
-	if len(hdls) > 0 {
-		if *needsBlankLine {
-			sb.WriteString("\n")
-		}
-		sb.WriteString(d.formatHeadlines(hdls))
-		*needsBlankLine = false
-	}
+	// Output headline annotations (from all bytes of instruction).
+	d.writeHeadlines(&sb, addr, instrEnd)
 
-	// Read operand bytes
-	operand := make([]byte, def.OperandSize())
-	for i := 0; i < def.OperandSize(); i++ {
-		b, err := d.state.Binary.ReadByte(addr + uint16(i+1))
-		if err != nil {
-			return "", 0, err
-		}
-		operand[i] = b
+	operand, err := d.readOperandBytes(addr, def.OperandSize())
+	if err != nil {
+		return "", 0, err
 	}
 
 	// Resolve optional label at the instruction address.
@@ -58,10 +46,8 @@ func (d *disassembler) formatCodeAt(addr uint16, needsBlankLine *bool) (string, 
 		label = sym.Name
 	}
 	labelCol := strings.Repeat(" ", codeInstrIndent)
-	if label != "" {
-		// Labeled code uses a separate label line for readability.
-		sb.WriteString(formatAddressOrLabelColumn(addr, label) + "\n")
-	}
+	xrefComments := d.formatXRefs(addr)
+	xrefComments = d.writeCodeLabelLine(&sb, addr, label, xrefComments)
 
 	// Format mnemonic
 	mnemonic := def.Op.String()
@@ -69,20 +55,71 @@ func (d *disassembler) formatCodeAt(addr uint16, needsBlankLine *bool) (string, 
 	// Format operand and resolve symbols for comments when needed.
 	operandStr, operandSymbol := d.formatOperandWithSymbol(def, operand, addr)
 
-	// Get inline annotations (from all bytes of instruction)
-	inlines := d.getInlineAnnotations(addr, instrEnd)
-
 	// Build the instruction line
 	line := labelCol + mnemonic + operandStr
-	xrefComments := d.formatXRefs(addr)
 	operandXRefs := d.formatOperandXRefs(addr, def.OperandSize())
 
 	// Collect all annotation lines (handling multi-line comments)
-	annotationLines := splitInlineComments(inlines)
+	annotationLines := d.getInlineCommentLines(addr, instrEnd)
 
-	// Decide which comment goes on the instruction line.
+	firstComment, continuation, operandXRefs := chooseInstructionComments(
+		operandSymbol,
+		annotationLines,
+		xrefComments,
+		operandXRefs,
+	)
+
+	writeInstructionWithComments(&sb, line, firstComment, continuation)
+
+	// Output operand xrefs (self-modifying code references)
+	for _, oxref := range operandXRefs {
+		sb.WriteString(padToColumn("", instructionCommentCol) + "; " + oxref + "\n")
+	}
+
+	return sb.String(), def.Size, nil
+}
+
+func (d *disassembler) readOperandBytes(addr uint16, operandSize int) ([]byte, error) {
+	operand := make([]byte, operandSize)
+	for i := 0; i < operandSize; i++ {
+		b, err := d.state.Binary.ReadByte(addr + uint16(i+1))
+		if err != nil {
+			return nil, err
+		}
+		operand[i] = b
+	}
+	return operand, nil
+}
+
+// writeCodeLabelLine prints the label line for code, including label-related xrefs.
+// It returns xrefs that should still be attached to instruction-level comments.
+func (d *disassembler) writeCodeLabelLine(sb *strings.Builder, addr uint16, label string, xrefComments []string) []string {
+	if label == "" {
+		return xrefComments
+	}
+
+	labelLine := formatAddressOrLabelColumn(addr, label)
+	labelXRef := ""
+	labelXRefContinuation := []string(nil)
+	if len(xrefComments) > 0 {
+		labelXRef = xrefComments[0]
+		labelXRefContinuation = xrefComments[1:]
+		// Label-related xrefs are attached to the label line.
+		xrefComments = nil
+	}
+	writeInstructionWithComments(sb, labelLine, labelXRef, labelXRefContinuation)
+	return xrefComments
+}
+
+func chooseInstructionComments(
+	operandSymbol string,
+	annotationLines []string,
+	xrefComments []string,
+	operandXRefs []string,
+) (string, []string, []string) {
 	var firstComment string
 	var continuation []string
+
 	switch {
 	case operandSymbol != "":
 		firstComment = operandSymbol
@@ -104,25 +141,15 @@ func (d *disassembler) formatCodeAt(addr uint16, needsBlankLine *bool) (string, 
 		operandXRefs = nil
 	}
 
-	writeInstructionWithComments(&sb, line, firstComment, continuation)
-
-	// Output operand xrefs (self-modifying code references)
-	for _, oxref := range operandXRefs {
-		sb.WriteString(padToColumn("", instructionCommentCol) + "; " + oxref + "\n")
-	}
-
-	*needsBlankLine = true
-	return sb.String(), def.Size, nil
+	return firstComment, continuation, operandXRefs
 }
 
 // formatMidInstructionAt handles a mid-instruction address by outputting a warning
 // comment and the byte as data. Returns formatted output.
-func (d *disassembler) formatMidInstructionAt(addr uint16, needsBlankLine *bool) string {
+func (d *disassembler) formatMidInstructionAt(addr uint16) string {
 	var sb strings.Builder
 
-	if *needsBlankLine {
-		sb.WriteString("\n")
-	}
+	sb.WriteString("\n")
 
 	// Output warning comment
 	sb.WriteString(fmt.Sprintf("; WARNING: mid-instruction byte at $%04X\n", addr))
@@ -131,6 +158,5 @@ func (d *disassembler) formatMidInstructionAt(addr uint16, needsBlankLine *bool)
 	b, _ := d.state.Binary.ReadByte(addr)
 	sb.WriteString(formatAddressColumn(addr) + fmt.Sprintf(".BYTE $%02X\n", b))
 
-	*needsBlankLine = true
 	return sb.String()
 }

@@ -34,6 +34,11 @@ func (d *disassembler) getInlineAnnotations(start, end uint16) []inlineAnnotatio
 	return inlines
 }
 
+// getInlineCommentLines returns split inline annotation lines in [start, end).
+func (d *disassembler) getInlineCommentLines(start, end uint16) []string {
+	return splitInlineComments(d.getInlineAnnotations(start, end))
+}
+
 // formatHeadlines formats headline annotations as a block comment.
 func (d *disassembler) formatHeadlines(hdls []headlines.Headline) string {
 	var lines []string
@@ -48,6 +53,14 @@ func (d *disassembler) formatHeadlines(hdls []headlines.Headline) string {
 // formatInlinesAsHeadlines formats inline annotations as a headline block (for data).
 func (d *disassembler) formatInlinesAsHeadlines(inlines []inlineAnnotation) string {
 	return formatBlockComment(splitInlineComments(inlines))
+}
+
+func (d *disassembler) writeHeadlines(sb *strings.Builder, start, end uint16) {
+	hdls := d.getHeadlines(start, end)
+	if len(hdls) == 0 {
+		return
+	}
+	sb.WriteString(d.formatHeadlines(hdls))
 }
 
 func splitInlineComments(inlines []inlineAnnotation) []string {

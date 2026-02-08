@@ -9,28 +9,21 @@ const unknownRegionComment = "UNKNOWN REGION: no backing binary data"
 
 // formatUnknownSpan formats a contiguous range of addresses that do not have
 // backing bytes in the loaded binary.
-func (d *disassembler) formatUnknownSpan(addr, end uint16, needsBlankLine *bool) (string, int) {
+func (d *disassembler) formatUnknownSpan(addr, end uint16) (string, int) {
 	spanEnd := d.calculateUnknownSpanEnd(addr, end)
 	size := int(spanEnd - addr)
 	if size <= 0 {
 		size = 1
 	}
 
-	return d.formatUnknownAt(addr, spanEnd, needsBlankLine), size
+	return d.formatUnknownAt(addr, spanEnd), size
 }
 
-func (d *disassembler) formatUnknownAt(addr, spanEnd uint16, needsBlankLine *bool) string {
+func (d *disassembler) formatUnknownAt(addr, spanEnd uint16) string {
 	var sb strings.Builder
 
 	// Keep headline behavior consistent with code/data formatting.
-	hdls := d.getHeadlines(addr, addr+1)
-	if len(hdls) > 0 {
-		if *needsBlankLine {
-			sb.WriteString("\n")
-		}
-		sb.WriteString(d.formatHeadlines(hdls))
-		*needsBlankLine = false
-	}
+	d.writeHeadlines(&sb, addr, addr+1)
 
 	for _, xref := range d.formatXRefs(addr) {
 		sb.WriteString("; " + xref + "\n")
@@ -47,11 +40,9 @@ func (d *disassembler) formatUnknownAt(addr, spanEnd uint16, needsBlankLine *boo
 		comment = fmt.Sprintf("%s ($%04X-$%04X)", unknownRegionComment, addr, spanEnd-1)
 	}
 
-	inlines := d.getInlineAnnotations(addr, addr+1)
-	inlineLines := splitInlineComments(inlines)
+	inlineLines := d.getInlineCommentLines(addr, addr+1)
 	writeInstructionWithComments(&sb, labelCol, comment, inlineLines)
 
-	*needsBlankLine = true
 	return sb.String()
 }
 

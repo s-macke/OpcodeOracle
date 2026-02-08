@@ -239,3 +239,44 @@ func TestAllReturnsMap(t *testing.T) {
 		t.Errorf("All()[0x0900].Name = %q, want %q", all[0x0900].Name, "b")
 	}
 }
+
+func TestAtOfTypes(t *testing.T) {
+	table := NewTable()
+	if err := table.Add(0x0800, Symbol{Name: "main", Type: SymbolLabel, Source: SourceUser}); err != nil {
+		t.Fatalf("Add failed: %v", err)
+	}
+
+	t.Run("match by allowed type", func(t *testing.T) {
+		sym, ok := table.AtOfTypes(0x0800, SymbolLabel, SymbolEntry)
+		if !ok {
+			t.Fatal("AtOfTypes should return true for allowed symbol type")
+		}
+		if sym.Name != "main" {
+			t.Fatalf("AtOfTypes name = %q, want %q", sym.Name, "main")
+		}
+	})
+
+	t.Run("reject disallowed type", func(t *testing.T) {
+		_, ok := table.AtOfTypes(0x0800, SymbolSubroutine)
+		if ok {
+			t.Fatal("AtOfTypes should return false for disallowed symbol type")
+		}
+	})
+
+	t.Run("empty allowed behaves like At", func(t *testing.T) {
+		sym, ok := table.AtOfTypes(0x0800)
+		if !ok {
+			t.Fatal("AtOfTypes with empty allowed should return existing symbol")
+		}
+		if sym.Name != "main" {
+			t.Fatalf("AtOfTypes name = %q, want %q", sym.Name, "main")
+		}
+	})
+
+	t.Run("missing address returns false", func(t *testing.T) {
+		_, ok := table.AtOfTypes(0x0810, SymbolLabel)
+		if ok {
+			t.Fatal("AtOfTypes should return false for missing address")
+		}
+	})
+}

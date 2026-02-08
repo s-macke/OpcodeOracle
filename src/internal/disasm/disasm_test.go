@@ -281,6 +281,34 @@ func TestDisassembleJSRUsesNumericOperandAndSymbolComment(t *testing.T) {
 	}
 }
 
+func TestDisassembleJSRIgnoresNonSubroutineSymbol(t *testing.T) {
+	data := []byte{
+		0x20, 0x05, 0x08, // JSR $0805
+		0xEA, 0xEA, // padding
+		0x60, // RTS at $0805
+	}
+	s := state.NewState(data, 0x0800, nil, "test.prg")
+	s.Regions.Set(0x0800, 0x0805, regions.RegionCode)
+	s.Symbols.Add(0x0805, symbols.Symbol{
+		Name:   "BYTE_ONLY",
+		Type:   symbols.SymbolByte,
+		Source: symbols.SourceUser,
+	})
+
+	d := NewDisassembler(s, nil)
+	output, err := d.Disassemble(0x0800, 0x0806)
+	if err != nil {
+		t.Fatalf("Disassemble failed: %v", err)
+	}
+
+	if !strings.Contains(output, "JSR $0805") {
+		t.Errorf("Output should contain numeric JSR operand, got:\n%s", output)
+	}
+	if strings.Contains(output, "; Call BYTE_ONLY") {
+		t.Errorf("JSR should not use byte symbols in call comment, got:\n%s", output)
+	}
+}
+
 func TestDisassembleJMPUsesNumericOperandAndSymbolComment(t *testing.T) {
 	data := []byte{
 		0x4C, 0x03, 0x08, // JMP $0803
@@ -1005,6 +1033,34 @@ func TestDisassembleWithXRefs(t *testing.T) {
 	}
 }
 
+func TestDisassembleXRefDoesNotUseByteSymbolName(t *testing.T) {
+	data := []byte{
+		0xA9, 0x00, // LDA #$00 at 0x0800 (target)
+		0x4C, 0x00, 0x08, // JMP $0800 at 0x0802 (xref source)
+	}
+	s := state.NewState(data, 0x0800, nil, "test.prg")
+	s.Regions.Set(0x0800, 0x0804, regions.RegionCode)
+	s.Symbols.Add(0x0802, symbols.Symbol{
+		Name:   "SRC_BYTE",
+		Type:   symbols.SymbolByte,
+		Source: symbols.SourceUser,
+	})
+	s.XRefs.Add(0x0802, 0x0800, "jump")
+
+	d := NewDisassembler(s, nil)
+	output, err := d.Disassemble(0x0800, 0x0805)
+	if err != nil {
+		t.Fatalf("Disassemble failed: %v", err)
+	}
+
+	if !strings.Contains(output, "; xref: jump from $0802") {
+		t.Errorf("Output should contain xref source address, got:\n%s", output)
+	}
+	if strings.Contains(output, "(SRC_BYTE)") {
+		t.Errorf("Xref should not include byte symbol suffix, got:\n%s", output)
+	}
+}
+
 func TestDisassembleWithMultipleXRefs(t *testing.T) {
 	// Create state with multiple xrefs to same address
 	data := []byte{
@@ -1068,6 +1124,46 @@ func TestDisassembleXRefOnSameLine(t *testing.T) {
 	}
 	if !foundXRefOnInstrLine {
 		t.Errorf("Xref should be on same line as instruction, got:\n%s", output)
+	}
+}
+
+func TestDisassembleXRefOnLabelLineWhenLabeled(t *testing.T) {
+	// Verify xref for labeled code is attached to the label line.
+	data := []byte{
+		0xA9, 0x00, // LDA #$00 at 0x0800 (labeled target)
+		0x4C, 0x00, 0x08, // JMP $0800 at 0x0802
+	}
+	s := state.NewState(data, 0x0800, nil, "test.prg")
+	s.Regions.Set(0x0800, 0x0804, regions.RegionCode)
+	s.Symbols.Add(0x0800, symbols.Symbol{
+		Name:   "MAIN",
+		Type:   symbols.SymbolLabel,
+		Source: symbols.SourceUser,
+	})
+	s.XRefs.Add(0x0802, 0x0800, "jump")
+
+	d := NewDisassembler(s, nil)
+	output, err := d.Disassemble(0x0800, 0x0805)
+	if err != nil {
+		t.Fatalf("Disassemble failed: %v", err)
+	}
+
+	lines := strings.Split(output, "\n")
+	foundLabelXRef := false
+	foundInstrXRef := false
+	for _, line := range lines {
+		if strings.Contains(line, "MAIN:") && strings.Contains(line, "; xref: jump from $0802") {
+			foundLabelXRef = true
+		}
+		if strings.Contains(line, "LDA #$00") && strings.Contains(line, "; xref:") {
+			foundInstrXRef = true
+		}
+	}
+	if !foundLabelXRef {
+		t.Errorf("Label line should contain xref comment, got:\n%s", output)
+	}
+	if foundInstrXRef {
+		t.Errorf("Instruction line should not contain label-related xref comment, got:\n%s", output)
 	}
 }
 
