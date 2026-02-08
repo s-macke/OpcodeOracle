@@ -42,7 +42,7 @@ func (d *disassembler) formatDataAt(addr, end uint16, needsBlankLine *bool) (str
 		return sb.String(), 1
 	}
 
-	// Determine chunk size (up to 16 bytes, break at boundaries)
+	// Determine chunk size (up to one data row, break at boundaries)
 	chunkSize := d.calculateDataChunkSize(addr, end)
 
 	// For unlabeled data, treat inline annotations as headlines
@@ -118,9 +118,9 @@ func (d *disassembler) formatDataRow(addr uint16, chunkSize int) string {
 
 // calculateDataChunkSize determines how many bytes to include in a data row.
 func (d *disassembler) calculateDataChunkSize(addr, end uint16) int {
-	// Calculate bytes to next 16-byte boundary
-	// When already aligned (addr & 0x0F == 0), this gives 16
-	bytesToBoundary := 16 - int(addr&0x0F)
+	// Calculate bytes to next data-row boundary.
+	// When already aligned, this yields dataRowMaxBytes.
+	bytesToBoundary := dataRowMaxBytes - int(addr%dataRowMaxBytes)
 
 	maxBytes := bytesToBoundary
 

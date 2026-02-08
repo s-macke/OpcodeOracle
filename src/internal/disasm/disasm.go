@@ -24,12 +24,20 @@ type disassembler struct {
 
 const (
 	// Left column layout for address/label prefix in code/data/unknown output.
-	addressWidth    = 5  // "$XXXX"
-	labelFieldWidth = 18 // "label:" padded field
-	leftColumnWidth = 24 // address + space + label field
+	addressWidth    = 5                                  // "$XXXX"
+	labelFieldWidth = 18                                 // "label:" padded field
+	leftColumnWidth = addressWidth + 1 + labelFieldWidth // address + separator + label field
+
+	// Data row layout: "$XXXX ... .BYTE $XX,...,$XX  ; \"ASCII\""
+	dataRowMaxBytes        = 16
+	dataByteTokenWidth     = 3 // "$XX"
+	dataByteSeparatorWidth = 1 // ","
+	minCommentGapWidth     = 2 // padToColumn minimum spacing before ';'
+
+	maxDataHexWidth = dataRowMaxBytes*dataByteTokenWidth + (dataRowMaxBytes-1)*dataByteSeparatorWidth
 
 	instructionCommentCol = 38
-	dataAsciiCol          = 95
+	dataAsciiCol          = leftColumnWidth + len(".BYTE ") + maxDataHexWidth + minCommentGapWidth
 )
 
 // NewDisassembler creates a disassembler that reads from the given state.

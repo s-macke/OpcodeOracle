@@ -47,6 +47,20 @@ func TestDisassembleCode(t *testing.T) {
 	}
 }
 
+func TestLeftColumnWidthInvariant(t *testing.T) {
+	want := addressWidth + 1 + labelFieldWidth
+	if leftColumnWidth != want {
+		t.Fatalf("leftColumnWidth = %d, want %d (addressWidth + 1 + labelFieldWidth)", leftColumnWidth, want)
+	}
+}
+
+func TestDataAsciiColumnInvariant(t *testing.T) {
+	want := leftColumnWidth + len(".BYTE ") + maxDataHexWidth + minCommentGapWidth
+	if dataAsciiCol != want {
+		t.Fatalf("dataAsciiCol = %d, want %d (leftColumnWidth + len(.BYTE) + maxDataHexWidth + minCommentGapWidth)", dataAsciiCol, want)
+	}
+}
+
 func TestDisassembleWithLabels(t *testing.T) {
 	// Create state with a labeled instruction
 	data := []byte{
