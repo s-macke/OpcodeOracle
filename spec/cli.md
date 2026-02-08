@@ -17,6 +17,7 @@ opcodeoracle <command> [options] [arguments]
 | `new`    | Create new project from binary                 |
 | `info`   | Display state file information                 |
 | `export` | Export state to assembly files                 |
+| `mcp`    | Start MCP server (stdio or streamable HTTP)   |
 
 ---
 
@@ -189,6 +190,66 @@ Output filename is derived from state file: `game.opcodeoracle.json` → `game.a
 ```bash
 opcodeoracle export game.opcodeoracle.json
 # Creates: game.asm + segments/
+```
+
+---
+
+## `mcp` - Start MCP Server
+
+Starts an MCP server exposing OpcodeOracle reverse-engineering tools.
+
+### Usage
+
+```
+opcodeoracle mcp [options] <state-file>
+```
+
+### Parameters
+
+| Parameter  | Flag       | Required | Description                          |
+|------------|------------|----------|--------------------------------------|
+| State file | positional | Yes      | Path to .opcodeoracle.json state file |
+
+### Options
+
+| Option        | Required | Default | Description |
+|---------------|----------|---------|-------------|
+| `--transport` | No       | `stdio` | MCP transport: `stdio` or `http` |
+| `--listen`    | http only | (none) | Listen address for HTTP mode (for example `127.0.0.1:8080`) |
+| `--path`      | No       | `/mcp`  | HTTP endpoint path in HTTP mode |
+| `--dry-run`   | No       | `false` | Show changes without saving state file |
+| `--verbose`   | No       | `false` | Enable detailed MCP server logs on stderr |
+
+### Behavior
+
+1. Loads the state file and initializes analysis context
+2. Registers MCP tools:
+   - `view_disassembly`
+   - `add_annotation`
+   - `add_headline`
+   - `add_symbol`
+   - `query_symbols`
+   - `query_xrefs`
+   - `list_subroutines`
+   - `get_subroutine_context`
+3. Starts transport:
+   - `stdio`: newline-delimited JSON-RPC over stdin/stdout
+   - `http`: streamable HTTP endpoint at `http://<listen><path>`
+4. Emits MCP server logs to stderr:
+   - Default: startup, shutdown, and tool call summaries
+   - `--verbose`: includes argument/result previews and autosave details
+
+### Examples
+
+```bash
+# Stdio transport (default)
+opcodeoracle mcp game.opcodeoracle.json
+
+# Explicit stdio transport
+opcodeoracle mcp --transport stdio game.opcodeoracle.json
+
+# Streamable HTTP transport
+opcodeoracle mcp --transport http --listen 127.0.0.1:8080 --path /mcp game.opcodeoracle.json
 ```
 
 ---

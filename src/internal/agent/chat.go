@@ -140,7 +140,13 @@ func (a *Agent) Chat(ctx context.Context, input io.Reader) error {
 					if a.config.Verbose && msg != nil {
 						fmt.Fprintf(a.output, "  Result: %s\n", truncate(msg.Content, 200))
 					}
-					if !a.config.DryRun && a.config.StatePath != "" && a.state.Metadata.ArchiveOnSave {
+					if shouldSaveImmediatelyOnMutation(
+						a.config.DryRun,
+						a.config.StatePath,
+						a.state.Metadata.ArchiveOnSave,
+						toolCtx.MutationCount,
+						lastSavedMutationCount,
+					) {
 						toolCtx.Mu.Lock()
 						if toolCtx.MutationCount > lastSavedMutationCount {
 							if err := stateio.Save(a.state, a.config.StatePath); err != nil {
@@ -171,7 +177,13 @@ func (a *Agent) Chat(ctx context.Context, input io.Reader) error {
 			turnPromptTokens, turnCachedTokens, turnCompletionTokens)
 
 		// Save state after each turn (unless dry-run)
-		if !a.config.DryRun && a.config.StatePath != "" && !a.state.Metadata.ArchiveOnSave {
+		if shouldAttemptPeriodicSave(
+			a.config.DryRun,
+			a.config.StatePath,
+			a.state.Metadata.ArchiveOnSave,
+			1,
+			1,
+		) {
 			toolCtx.Mu.Lock()
 			if err := stateio.Save(a.state, a.config.StatePath); err != nil && a.config.Verbose {
 				fmt.Fprintf(a.output, "  Warning: save failed: %v\n", err)
