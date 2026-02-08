@@ -5,6 +5,7 @@ import (
 	"os"
 
 	"opcodeoracle/internal/analysis"
+	"opcodeoracle/internal/numparse"
 	"opcodeoracle/internal/state"
 	"opcodeoracle/internal/stateio"
 
@@ -29,7 +30,7 @@ func newPrgCommand() *cli.Command {
 }
 
 func cmdNewPrg(c *cli.Context, binaryFile string) error {
-	entryNum, err := parseNumber(c.String("entry"))
+	entryNum, err := numparse.ParseUint16(c.String("entry"))
 	if err != nil {
 		return cli.Exit("error: invalid entry value: "+err.Error(), ExitInvalidArgs)
 	}

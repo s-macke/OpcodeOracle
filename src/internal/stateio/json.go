@@ -3,14 +3,13 @@ package stateio
 import (
 	"encoding/json"
 	"fmt"
-	"strconv"
-	"strings"
 	"time"
 
 	"opcodeoracle/internal/annotations"
 	"opcodeoracle/internal/author"
 	"opcodeoracle/internal/binary"
 	"opcodeoracle/internal/headlines"
+	"opcodeoracle/internal/numparse"
 	"opcodeoracle/internal/regions"
 	"opcodeoracle/internal/state"
 	"opcodeoracle/internal/symbols"
@@ -101,12 +100,7 @@ type jsonRegion struct {
 
 // parseHex parses a hex string like "0x0801" to uint16.
 func parseHex(s string) (uint16, error) {
-	s = strings.TrimPrefix(strings.ToLower(s), "0x")
-	val, err := strconv.ParseUint(s, 16, 16)
-	if err != nil {
-		return 0, fmt.Errorf("invalid hex address %q: %w", s, err)
-	}
-	return uint16(val), nil
+	return numparse.ParseHexUint16(s)
 }
 
 // formatHex formats a uint16 as "0xNNNN".

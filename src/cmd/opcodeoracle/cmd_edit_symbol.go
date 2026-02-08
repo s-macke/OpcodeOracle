@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 
+	"opcodeoracle/internal/numparse"
 	"opcodeoracle/internal/symbols"
 
 	"github.com/urfave/cli/v2"
@@ -30,7 +31,7 @@ func editSymbolCommand() *cli.Command {
 
 func cmdEditSymbol(c *cli.Context, stateFile string) error {
 	// Parse address
-	addr, err := parseNumber(c.String("address"))
+	addr, err := numparse.ParseUint16(c.String("address"))
 	if err != nil {
 		return cli.Exit("error: invalid address: "+err.Error(), ExitInvalidArgs)
 	}

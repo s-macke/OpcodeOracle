@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"opcodeoracle/internal/disasm"
+	"opcodeoracle/internal/numparse"
 
 	"github.com/cloudwego/eino/components/tool"
 	"github.com/cloudwego/eino/schema"
@@ -23,8 +24,8 @@ func NewListSubroutinesTool(ctx *Context) *ListSubroutinesTool {
 }
 
 type listSubroutinesParams struct {
-	StartAddr string `json:"start_addr"`
-	EndAddr   string `json:"end_addr"`
+	StartAddr *string `json:"start_addr,omitempty"`
+	EndAddr   *string `json:"end_addr,omitempty"`
 }
 
 // Info returns the tool's metadata.
@@ -61,16 +62,16 @@ func (t *ListSubroutinesTool) InvokableRun(_ context.Context, argumentsInJSON st
 	startAddr := t.ctx.State.Binary.Start()
 	endAddr := t.ctx.State.Binary.End()
 
-	if params.StartAddr != "" {
+	if params.StartAddr != nil && *params.StartAddr != "" {
 		var err error
-		startAddr, err = parseAddress(params.StartAddr)
+		startAddr, err = numparse.ParseUint16(*params.StartAddr)
 		if err != nil {
 			return fmt.Sprintf("Error: invalid start_addr: %v", err), nil
 		}
 	}
-	if params.EndAddr != "" {
+	if params.EndAddr != nil && *params.EndAddr != "" {
 		var err error
-		endAddr, err = parseAddress(params.EndAddr)
+		endAddr, err = numparse.ParseUint16(*params.EndAddr)
 		if err != nil {
 			return fmt.Sprintf("Error: invalid end_addr: %v", err), nil
 		}
@@ -150,7 +151,7 @@ func (t *GetSubroutineContextTool) InvokableRun(_ context.Context, argumentsInJS
 		return fmt.Sprintf("Error: failed to parse arguments: %v", err), nil
 	}
 
-	addr, err := parseAddress(params.Address)
+	addr, err := numparse.ParseUint16(params.Address)
 	if err != nil {
 		return fmt.Sprintf("Error: invalid address: %v", err), nil
 	}

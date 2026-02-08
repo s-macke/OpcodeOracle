@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	"opcodeoracle/internal/author"
+	"opcodeoracle/internal/numparse"
 
 	"github.com/urfave/cli/v2"
 )
@@ -30,7 +31,7 @@ func editHeadlineCommand() *cli.Command {
 
 func cmdEditHeadline(c *cli.Context, stateFile string) error {
 	// Parse address
-	addr, err := parseNumber(c.String("address"))
+	addr, err := numparse.ParseUint16(c.String("address"))
 	if err != nil {
 		return cli.Exit("error: invalid address: "+err.Error(), ExitInvalidArgs)
 	}

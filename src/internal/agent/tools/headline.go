@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"opcodeoracle/internal/author"
+	"opcodeoracle/internal/numparse"
 
 	"github.com/cloudwego/eino/components/tool"
 	"github.com/cloudwego/eino/schema"
@@ -57,7 +58,7 @@ func (t *AddHeadlineTool) InvokableRun(_ context.Context, argumentsInJSON string
 		return fmt.Sprintf("Error: failed to parse arguments: %v", err), nil
 	}
 
-	addr, err := parseAddress(params.Address)
+	addr, err := numparse.ParseUint16(params.Address)
 	if err != nil {
 		return fmt.Sprintf("Error: invalid address: %v", err), nil
 	}

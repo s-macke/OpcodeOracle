@@ -371,6 +371,7 @@ func TestParseHex(t *testing.T) {
 		{"0X1234", 0x1234, false},
 		{"ABCD", 0xABCD, false},
 		{"abcd", 0xABCD, false},
+		{"$ABCD", 0, true},
 		{"", 0, true},
 		{"0xGGGG", 0, true},
 		{"0x10000", 0, true},

@@ -2,12 +2,11 @@ package main
 
 import (
 	"fmt"
-	"strconv"
-	"strings"
 
 	"github.com/urfave/cli/v2"
 
 	"opcodeoracle/internal/disasm"
+	"opcodeoracle/internal/numparse"
 )
 
 func disasmCommand() *cli.Command {
@@ -48,7 +47,7 @@ func cmdDisasm(c *cli.Context) error {
 	end := s.Binary.End()
 
 	if startStr := c.String("start"); startStr != "" {
-		parsed, err := parseAddress(startStr)
+		parsed, err := numparse.ParseUint16(startStr)
 		if err != nil {
 			return cli.Exit("error: invalid start address: "+err.Error(), ExitInvalidArgs)
 		}
@@ -56,7 +55,7 @@ func cmdDisasm(c *cli.Context) error {
 	}
 
 	if endStr := c.String("end"); endStr != "" {
-		parsed, err := parseAddress(endStr)
+		parsed, err := numparse.ParseUint16(endStr)
 		if err != nil {
 			return cli.Exit("error: invalid end address: "+err.Error(), ExitInvalidArgs)
 		}
@@ -81,57 +80,4 @@ func inclusiveToExclusiveEnd(end uint16) uint16 {
 		return 0xFFFF
 	}
 	return end + 1
-}
-
-// parseAddress parses an address string in various formats:
-// $C000, 0xC000, C000, 49152
-func parseAddress(s string) (uint16, error) {
-	s = strings.TrimSpace(s)
-
-	// Handle $ prefix (6502 convention)
-	if strings.HasPrefix(s, "$") {
-		s = s[1:]
-		val, err := strconv.ParseUint(s, 16, 16)
-		if err != nil {
-			return 0, fmt.Errorf("invalid hex address: %s", s)
-		}
-		return uint16(val), nil
-	}
-
-	// Handle 0x prefix
-	if strings.HasPrefix(s, "0x") || strings.HasPrefix(s, "0X") {
-		val, err := strconv.ParseUint(s[2:], 16, 16)
-		if err != nil {
-			return 0, fmt.Errorf("invalid hex address: %s", s)
-		}
-		return uint16(val), nil
-	}
-
-	// Try hex first (if all hex digits), then decimal
-	if isHexString(s) {
-		val, err := strconv.ParseUint(s, 16, 16)
-		if err == nil {
-			return uint16(val), nil
-		}
-	}
-
-	// Try decimal
-	val, err := strconv.ParseUint(s, 10, 16)
-	if err != nil {
-		return 0, fmt.Errorf("invalid address: %s", s)
-	}
-	return uint16(val), nil
-}
-
-// isHexString returns true if s contains only hex digits and at least one a-f/A-F.
-func isHexString(s string) bool {
-	hasHexLetter := false
-	for _, c := range s {
-		if (c >= 'a' && c <= 'f') || (c >= 'A' && c <= 'F') {
-			hasHexLetter = true
-		} else if c < '0' || c > '9' {
-			return false
-		}
-	}
-	return hasHexLetter
 }

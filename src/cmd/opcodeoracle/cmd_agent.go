@@ -8,6 +8,7 @@ import (
 	"github.com/urfave/cli/v2"
 
 	"opcodeoracle/internal/agent"
+	"opcodeoracle/internal/numparse"
 )
 
 func agentCommand() *cli.Command {
@@ -100,7 +101,7 @@ func cmdAgent(c *cli.Context) error {
 
 	// Parse address range
 	if startStr := c.String("start"); startStr != "" {
-		addr, err := parseAddress(startStr)
+		addr, err := numparse.ParseUint16(startStr)
 		if err != nil {
 			return cli.Exit("error: invalid start address: "+err.Error(), ExitInvalidArgs)
 		}
@@ -108,7 +109,7 @@ func cmdAgent(c *cli.Context) error {
 	}
 
 	if endStr := c.String("end"); endStr != "" {
-		addr, err := parseAddress(endStr)
+		addr, err := numparse.ParseUint16(endStr)
 		if err != nil {
 			return cli.Exit("error: invalid end address: "+err.Error(), ExitInvalidArgs)
 		}

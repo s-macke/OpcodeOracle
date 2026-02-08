@@ -7,6 +7,7 @@ import (
 	"sort"
 	"strings"
 
+	"opcodeoracle/internal/numparse"
 	"opcodeoracle/internal/symbols"
 
 	"github.com/cloudwego/eino/components/tool"
@@ -65,7 +66,7 @@ func (t *AddSymbolTool) InvokableRun(_ context.Context, argumentsInJSON string, 
 		return fmt.Sprintf("Error: failed to parse arguments: %v", err), nil
 	}
 
-	addr, err := parseAddress(params.Address)
+	addr, err := numparse.ParseUint16(params.Address)
 	if err != nil {
 		return fmt.Sprintf("Error: invalid address: %v", err), nil
 	}
@@ -175,7 +176,7 @@ func (t *QuerySymbolsTool) InvokableRun(_ context.Context, argumentsInJSON strin
 	var hasRange bool
 	if params.StartAddr != "" {
 		var err error
-		startAddr, err = parseAddress(params.StartAddr)
+		startAddr, err = numparse.ParseUint16(params.StartAddr)
 		if err != nil {
 			return fmt.Sprintf("Error: invalid start_addr: %v", err), nil
 		}
@@ -183,7 +184,7 @@ func (t *QuerySymbolsTool) InvokableRun(_ context.Context, argumentsInJSON strin
 	}
 	if params.EndAddr != "" {
 		var err error
-		endAddr, err = parseAddress(params.EndAddr)
+		endAddr, err = numparse.ParseUint16(params.EndAddr)
 		if err != nil {
 			return fmt.Sprintf("Error: invalid end_addr: %v", err), nil
 		}

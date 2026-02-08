@@ -6,6 +6,7 @@ import (
 	"fmt"
 
 	"opcodeoracle/internal/disasm"
+	"opcodeoracle/internal/numparse"
 
 	"github.com/cloudwego/eino/components/tool"
 	"github.com/cloudwego/eino/schema"
@@ -56,7 +57,7 @@ func (t *ViewDisassemblyTool) InvokableRun(_ context.Context, argumentsInJSON st
 		return fmt.Sprintf("Error: failed to parse arguments: %v", err), nil
 	}
 
-	startAddr, err := parseAddress(params.StartAddr)
+	startAddr, err := numparse.ParseUint16(params.StartAddr)
 	if err != nil {
 		return fmt.Sprintf("Error: invalid start_addr: %v", err), nil
 	}
@@ -67,7 +68,7 @@ func (t *ViewDisassemblyTool) InvokableRun(_ context.Context, argumentsInJSON st
 		endAddr = 0xFFFF
 	}
 	if params.EndAddr != "" {
-		endAddr, err = parseAddress(params.EndAddr)
+		endAddr, err = numparse.ParseUint16(params.EndAddr)
 		if err != nil {
 			return fmt.Sprintf("Error: invalid end_addr: %v", err), nil
 		}
