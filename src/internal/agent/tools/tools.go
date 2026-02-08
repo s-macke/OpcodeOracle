@@ -34,6 +34,7 @@ type Change struct {
 func AllTools(ctx *Context) []tool.BaseTool {
 	return []tool.BaseTool{
 		NewViewDisassemblyTool(ctx),
+		NewSearchDisassemblyTool(ctx),
 		NewAddAnnotationTool(ctx),
 		NewAddHeadlineTool(ctx),
 		NewAddSymbolTool(ctx),

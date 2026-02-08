@@ -120,9 +120,10 @@ func Run(ctx context.Context, server *mcp.Server, cfg *Config, opts RunOptions) 
 	}
 }
 
-// registerTools adds all 8 OpcodeOracle tools to the MCP server.
+// registerTools adds all OpcodeOracle tools to the MCP server.
 func registerTools(server *mcp.Server, cfg *Config) {
 	viewDisassembly := tools.NewViewDisassemblyTool(cfg.ToolCtx)
+	searchDisassembly := tools.NewSearchDisassemblyTool(cfg.ToolCtx)
 	addAnnotation := tools.NewAddAnnotationTool(cfg.ToolCtx)
 	addHeadline := tools.NewAddHeadlineTool(cfg.ToolCtx)
 	addSymbol := tools.NewAddSymbolTool(cfg.ToolCtx)
@@ -136,6 +137,13 @@ func registerTools(server *mcp.Server, cfg *Config) {
 		Description: "View disassembled code at an address range. Shows instructions, existing annotations, headlines, and symbols. Use hex addresses like '$C000' or '0xC000'.",
 	}, func(ctx context.Context, req *mcp.CallToolRequest, args ViewDisassemblyArgs) (*mcp.CallToolResult, any, error) {
 		return delegate(ctx, viewDisassembly, args, "view_disassembly", cfg)
+	})
+
+	mcp.AddTool(server, &mcp.Tool{
+		Name:        "search_disassembly",
+		Description: "Search disassembly text for a query string. Returns match addresses, matching lines, and nearby context. Useful for finding opcodes, symbols, comments, and patterns quickly.",
+	}, func(ctx context.Context, req *mcp.CallToolRequest, args SearchDisassemblyArgs) (*mcp.CallToolResult, any, error) {
+		return delegate(ctx, searchDisassembly, args, "search_disassembly", cfg)
 	})
 
 	mcp.AddTool(server, &mcp.Tool{

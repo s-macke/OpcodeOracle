@@ -6,6 +6,14 @@ type ViewDisassemblyArgs struct {
 	EndAddr   *string `json:"end_addr,omitempty" jsonschema:"End address in hex (inclusive). If not provided, shows ~32 bytes from start."`
 }
 
+// SearchDisassemblyArgs are the arguments for the search_disassembly tool.
+type SearchDisassemblyArgs struct {
+	Query         string `json:"query" jsonschema:"Text to search for in rendered disassembly output"`
+	CaseSensitive *bool  `json:"case_sensitive,omitempty" jsonschema:"Case-sensitive matching (optional, default false)"`
+	ContextLines  *int   `json:"context_lines,omitempty" jsonschema:"Number of context lines before/after each match (optional, default 1, max 3)"`
+	MaxResults    *int   `json:"max_results,omitempty" jsonschema:"Maximum number of matches to return (optional, default 20, max 200)"`
+}
+
 // AddAnnotationArgs are the arguments for the add_annotation tool.
 type AddAnnotationArgs struct {
 	Address string `json:"address" jsonschema:"Address in hex (e.g. '$C000' or '0xC000')"`
