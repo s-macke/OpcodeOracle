@@ -123,13 +123,21 @@ func (t *ListSubroutinesAndDataSegmentsTool) InvokableRun(_ context.Context, arg
 			if segmentHasHeadlineInRange(seg.Start, seg.End, allHeadlines) {
 				hasHeadline = " [documented]"
 			}
-			codeLines = append(codeLines, fmt.Sprintf("  $%04X-$%04X: code%s", seg.Start, seg.End, hasHeadline))
+			codeSymbol := ""
+			if sym, ok := t.ctx.State.Symbols.At(seg.Start); ok {
+				codeSymbol = fmt.Sprintf(" (%s, %s)", sym.Name, sym.Type)
+			}
+			codeLines = append(codeLines, fmt.Sprintf("  $%04X-$%04X: code%s%s", seg.Start, seg.End, codeSymbol, hasHeadline))
 		case segments.Data:
 			hasHeadline := ""
 			if segmentHasHeadlineInRange(seg.Start, seg.End, allHeadlines) {
 				hasHeadline = " [documented]"
 			}
-			dataLines = append(dataLines, fmt.Sprintf("  $%04X-$%04X: data%s", seg.Start, seg.End, hasHeadline))
+			dataSymbol := ""
+			if sym, ok := t.ctx.State.Symbols.At(seg.Start); ok {
+				dataSymbol = fmt.Sprintf(" (%s, %s)", sym.Name, sym.Type)
+			}
+			dataLines = append(dataLines, fmt.Sprintf("  $%04X-$%04X: data%s%s", seg.Start, seg.End, dataSymbol, hasHeadline))
 		}
 	}
 
