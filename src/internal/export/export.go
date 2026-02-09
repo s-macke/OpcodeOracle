@@ -8,6 +8,7 @@ import (
 
 	"opcodeoracle/internal/analysis"
 	"opcodeoracle/internal/disasm"
+	"opcodeoracle/internal/segments"
 	"opcodeoracle/internal/state"
 )
 
@@ -33,7 +34,7 @@ func (e *Exporter) Export(path string) error {
 		return fmt.Errorf("creating output directory: %w", err)
 	}
 
-	segments := e.identifySegments()
+	plannedSegments := segments.Plan(e.state)
 
 	var sb strings.Builder
 
@@ -45,7 +46,7 @@ func (e *Exporter) Export(path string) error {
 	sb.WriteString(fmt.Sprintf("         .ORG $%04X\n\n", e.state.Binary.Origin))
 
 	// Write each segment
-	for _, seg := range segments {
+	for _, seg := range plannedSegments {
 		// Section title
 		sb.WriteString(sectionTitle(seg) + "\n\n")
 

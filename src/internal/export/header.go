@@ -3,6 +3,8 @@ package export
 import (
 	"fmt"
 	"time"
+
+	"opcodeoracle/internal/segments"
 )
 
 const headerSeparator = "; ============================================================"
@@ -29,16 +31,16 @@ func (e *Exporter) generateHeader(segmentInfo string) string {
 }
 
 // sectionTitle returns the section comment line for a segment.
-func sectionTitle(seg Segment) string {
+func sectionTitle(seg segments.Segment) string {
 	switch seg.Type {
-	case SegmentSub:
+	case segments.Sub:
 		if seg.Name != "" {
 			return fmt.Sprintf("; === SUBROUTINE: %s ===", seg.Name)
 		}
 		return fmt.Sprintf("; === SUBROUTINE @ $%04X ===", seg.Start)
-	case SegmentCode:
+	case segments.Code:
 		return "; === CODE SECTION ==="
-	case SegmentData:
+	case segments.Data:
 		return "; === DATA SECTION ==="
 	default:
 		return "; === SECTION ==="

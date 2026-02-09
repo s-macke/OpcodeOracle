@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"opcodeoracle/internal/regions"
+	"opcodeoracle/internal/segments"
 	"opcodeoracle/internal/state"
 	"opcodeoracle/internal/symbols"
 )
@@ -14,15 +15,13 @@ import (
 func TestIdentifySegments_DataOnly(t *testing.T) {
 	s := state.NewState(make([]byte, 256), 0x0800, nil, "test.prg")
 	// Default state has everything as data
-	exp := NewExporter(s, nil)
+	gotSegments := segments.Plan(s)
 
-	segments := exp.identifySegments()
-
-	if len(segments) != 1 {
-		t.Fatalf("expected 1 segment, got %d", len(segments))
+	if len(gotSegments) != 1 {
+		t.Fatalf("expected 1 segment, got %d", len(gotSegments))
 	}
-	if segments[0].Type != SegmentData {
-		t.Errorf("expected data segment, got %s", segments[0].Type)
+	if gotSegments[0].Type != segments.Data {
+		t.Errorf("expected data segment, got %s", gotSegments[0].Type)
 	}
 }
 
@@ -30,13 +29,12 @@ func TestIdentifySegments_CodeWithoutSubroutines(t *testing.T) {
 	s := state.NewState(make([]byte, 256), 0x0800, nil, "test.prg")
 	s.Regions.Set(0x0800, 0x08FF, regions.RegionCode)
 
-	exp := NewExporter(s, nil)
-	segments := exp.identifySegments()
+	gotSegments := segments.Plan(s)
 
 	// Should have: data before code, code segment, data after code
-	var codeSegs []Segment
-	for _, seg := range segments {
-		if seg.Type == SegmentCode {
+	var codeSegs []segments.Segment
+	for _, seg := range gotSegments {
+		if seg.Type == segments.Code {
 			codeSegs = append(codeSegs, seg)
 		}
 	}
@@ -58,13 +56,12 @@ func TestIdentifySegments_CodeWithSubroutines(t *testing.T) {
 	s.Symbols.Add(0x0900, symbols.Symbol{Name: "sub1", Type: symbols.SymbolSubroutine, Source: symbols.SourceAuto})
 	s.Symbols.Add(0x0A00, symbols.Symbol{Name: "sub2", Type: symbols.SymbolSubroutine, Source: symbols.SourceAuto})
 
-	exp := NewExporter(s, nil)
-	segments := exp.identifySegments()
+	gotSegments := segments.Plan(s)
 
 	// Find subroutine segments
-	var subSegs []Segment
-	for _, seg := range segments {
-		if seg.Type == SegmentSub {
+	var subSegs []segments.Segment
+	for _, seg := range gotSegments {
+		if seg.Type == segments.Sub {
 			subSegs = append(subSegs, seg)
 		}
 	}
@@ -99,16 +96,15 @@ func TestIdentifySegments_CodeBeforeFirstSubroutine(t *testing.T) {
 	// Subroutine starts at 0x0900, not at region start
 	s.Symbols.Add(0x0900, symbols.Symbol{Name: "sub1", Type: symbols.SymbolSubroutine, Source: symbols.SourceAuto})
 
-	exp := NewExporter(s, nil)
-	segments := exp.identifySegments()
+	gotSegments := segments.Plan(s)
 
 	// Should have code segment before subroutine
-	var codeSegs, subSegs []Segment
-	for _, seg := range segments {
+	var codeSegs, subSegs []segments.Segment
+	for _, seg := range gotSegments {
 		switch seg.Type {
-		case SegmentCode:
+		case segments.Code:
 			codeSegs = append(codeSegs, seg)
-		case SegmentSub:
+		case segments.Sub:
 			subSegs = append(subSegs, seg)
 		}
 	}
@@ -130,13 +126,13 @@ func TestIdentifySegments_CodeBeforeFirstSubroutine(t *testing.T) {
 
 func TestSectionTitle(t *testing.T) {
 	tests := []struct {
-		seg      Segment
+		seg      segments.Segment
 		expected string
 	}{
-		{Segment{Type: SegmentCode}, "; === CODE SECTION ==="},
-		{Segment{Type: SegmentData}, "; === DATA SECTION ==="},
-		{Segment{Type: SegmentSub, Name: "foo"}, "; === SUBROUTINE: foo ==="},
-		{Segment{Type: SegmentSub, Start: 0x1000}, "; === SUBROUTINE @ $1000 ==="},
+		{segments.Segment{Type: segments.Code}, "; === CODE SECTION ==="},
+		{segments.Segment{Type: segments.Data}, "; === DATA SECTION ==="},
+		{segments.Segment{Type: segments.Sub, Name: "foo"}, "; === SUBROUTINE: foo ==="},
+		{segments.Segment{Type: segments.Sub, Start: 0x1000}, "; === SUBROUTINE @ $1000 ==="},
 	}
 
 	for _, tt := range tests {

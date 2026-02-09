@@ -86,7 +86,7 @@ JSR play      ; Call each frame (typically in IRQ)
 - Use view_disassembly to examine code sections
 - Use query_xrefs to understand call relationships
 - Use query_symbols to check existing labels
-- Use list_subroutines to get an overview
+- Use list_subroutines_and_data_segments to get an overview
 - Add symbols/headlines/annotations as you discover meaning
 
 Always provide context in your analysis. When you identify a subroutine's purpose, add a headline. When you understand an instruction's role, add an annotation. When you recognize an address's meaning, add a symbol.`

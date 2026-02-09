@@ -7,32 +7,34 @@ import (
 	"strings"
 
 	"opcodeoracle/internal/disasm"
+	"opcodeoracle/internal/headlines"
 	"opcodeoracle/internal/numparse"
+	"opcodeoracle/internal/segments"
 
 	"github.com/cloudwego/eino/components/tool"
 	"github.com/cloudwego/eino/schema"
 )
 
-// ListSubroutinesTool lists all subroutines in the binary or a range.
-type ListSubroutinesTool struct {
+// ListSubroutinesAndDataSegmentsTool lists subroutines and non-subroutine segments.
+type ListSubroutinesAndDataSegmentsTool struct {
 	ctx *Context
 }
 
-// NewListSubroutinesTool creates a new list_subroutines tool.
-func NewListSubroutinesTool(ctx *Context) *ListSubroutinesTool {
-	return &ListSubroutinesTool{ctx: ctx}
+// NewListSubroutinesAndDataSegmentsTool creates a new list_subroutines_and_data_segments tool.
+func NewListSubroutinesAndDataSegmentsTool(ctx *Context) *ListSubroutinesAndDataSegmentsTool {
+	return &ListSubroutinesAndDataSegmentsTool{ctx: ctx}
 }
 
-type listSubroutinesParams struct {
+type listSubroutinesAndDataSegmentsParams struct {
 	StartAddr *string `json:"start_addr,omitempty"`
 	EndAddr   *string `json:"end_addr,omitempty"`
 }
 
 // Info returns the tool's metadata.
-func (t *ListSubroutinesTool) Info(_ context.Context) (*schema.ToolInfo, error) {
+func (t *ListSubroutinesAndDataSegmentsTool) Info(_ context.Context) (*schema.ToolInfo, error) {
 	return &schema.ToolInfo{
-		Name: "list_subroutines",
-		Desc: "List all subroutines (and entry points) in the binary or within an address range. Shows subroutine addresses and names. Use to get an overview of the code structure.",
+		Name: "list_subroutines_and_data_segments",
+		Desc: "List subroutine/entry, code, and data segments in the binary or within an address range. Subroutine rows include names and caller counts for quick code-structure overview.",
 		ParamsOneOf: schema.NewParamsOneOfByParams(map[string]*schema.ParameterInfo{
 			"start_addr": {
 				Type:     schema.String,
@@ -49,11 +51,11 @@ func (t *ListSubroutinesTool) Info(_ context.Context) (*schema.ToolInfo, error) 
 }
 
 // InvokableRun executes the tool.
-func (t *ListSubroutinesTool) InvokableRun(_ context.Context, argumentsInJSON string, _ ...tool.Option) (string, error) {
+func (t *ListSubroutinesAndDataSegmentsTool) InvokableRun(_ context.Context, argumentsInJSON string, _ ...tool.Option) (string, error) {
 	t.ctx.Mu.Lock()
 	defer t.ctx.Mu.Unlock()
 
-	var params listSubroutinesParams
+	var params listSubroutinesAndDataSegmentsParams
 	if err := json.Unmarshal([]byte(argumentsInJSON), &params); err != nil {
 		return fmt.Sprintf("Error: failed to parse arguments: %v", err), nil
 	}
@@ -77,40 +79,90 @@ func (t *ListSubroutinesTool) InvokableRun(_ context.Context, argumentsInJSON st
 		}
 	}
 
-	subs := t.ctx.State.Symbols.SubroutinesInRange(startAddr, endAddr)
-
-	if len(subs) == 0 {
-		return fmt.Sprintf("No subroutines found in range $%04X-$%04X", startAddr, endAddr), nil
-	}
+	allSegs := segments.Plan(t.ctx.State)
+	segs := segments.FilterIntersecting(allSegs, startAddr, endAddr)
 
 	var results []string
-	results = append(results, fmt.Sprintf("Found %d subroutines in range $%04X-$%04X:", len(subs), startAddr, endAddr))
+	results = append(results, fmt.Sprintf("Found %d segments in range $%04X-$%04X:", len(segs), startAddr, endAddr))
 
-	for _, sub := range subs {
-		// Count callers
-		callers := t.ctx.State.XRefs.To(sub.Addr)
-		callerCount := 0
-		for _, ref := range callers {
-			if ref.Type == "call" {
-				callerCount++
+	var subLines []string
+	var codeLines []string
+	var dataLines []string
+	allHeadlines := t.ctx.State.Headlines.All()
+
+	for _, seg := range segs {
+		switch seg.Type {
+		case segments.Sub:
+			callers := t.ctx.State.XRefs.To(seg.Start)
+			callerCount := 0
+			for _, ref := range callers {
+				if ref.Type == "call" {
+					callerCount++
+				}
 			}
-		}
 
-		// Check if has headline
-		hasHeadline := ""
-		headlines := t.ctx.State.Headlines.At(sub.Addr)
-		if len(headlines) > 0 {
-			hasHeadline = " [documented]"
-		}
+			symType := "subroutine"
+			if sym, ok := t.ctx.State.Symbols.At(seg.Start); ok {
+				symType = string(sym.Type)
+			}
 
-		results = append(results, fmt.Sprintf("  $%04X: %s (%s, %d callers)%s",
-			sub.Addr, sub.Symbol.Name, sub.Symbol.Type, callerCount, hasHeadline))
+			hasHeadline := ""
+			if len(t.ctx.State.Headlines.At(seg.Start)) > 0 {
+				hasHeadline = " [documented]"
+			}
+
+			name := seg.Name
+			if name == "" {
+				name = fmt.Sprintf("SUB_%04X", seg.Start)
+			}
+
+			subLines = append(subLines, fmt.Sprintf("  $%04X: %s (%s, %d callers)%s [%04X-%04X]",
+				seg.Start, name, symType, callerCount, hasHeadline, seg.Start, seg.End))
+		case segments.Code:
+			hasHeadline := ""
+			if segmentHasHeadlineInRange(seg.Start, seg.End, allHeadlines) {
+				hasHeadline = " [documented]"
+			}
+			codeLines = append(codeLines, fmt.Sprintf("  $%04X-$%04X: code%s", seg.Start, seg.End, hasHeadline))
+		case segments.Data:
+			hasHeadline := ""
+			if segmentHasHeadlineInRange(seg.Start, seg.End, allHeadlines) {
+				hasHeadline = " [documented]"
+			}
+			dataLines = append(dataLines, fmt.Sprintf("  $%04X-$%04X: data%s", seg.Start, seg.End, hasHeadline))
+		}
+	}
+
+	results = append(results, "")
+	results = append(results, fmt.Sprintf("Subroutine/Entry segments (%d):", len(subLines)))
+	results = append(results, subLines...)
+
+	results = append(results, "")
+	results = append(results, fmt.Sprintf("Code segments (%d):", len(codeLines)))
+	results = append(results, codeLines...)
+
+	results = append(results, "")
+	results = append(results, fmt.Sprintf("Data segments (%d):", len(dataLines)))
+	results = append(results, dataLines...)
+
+	if len(segs) == 0 {
+		results = append(results, "")
+		results = append(results, "No segments intersect the requested range.")
 	}
 
 	return strings.Join(results, "\n"), nil
 }
 
-var _ tool.InvokableTool = (*ListSubroutinesTool)(nil)
+var _ tool.InvokableTool = (*ListSubroutinesAndDataSegmentsTool)(nil)
+
+func segmentHasHeadlineInRange(start, end uint16, all map[uint16]*headlines.AddressHeadlines) bool {
+	for addr := range all {
+		if addr >= start && addr <= end {
+			return true
+		}
+	}
+	return false
+}
 
 // GetSubroutineContextTool gets detailed context for a subroutine.
 type GetSubroutineContextTool struct {

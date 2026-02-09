@@ -47,8 +47,8 @@ type QueryXRefsArgs struct {
 	Direction *string `json:"direction,omitempty" jsonschema:"Direction of references: 'to' (who references this address), 'from' (what this address references), or 'both',enum=to,enum=from,enum=both"`
 }
 
-// ListSubroutinesArgs are the arguments for the list_subroutines tool.
-type ListSubroutinesArgs struct {
+// ListSubroutinesAndDataSegmentsArgs are the arguments for the list_subroutines_and_data_segments tool.
+type ListSubroutinesAndDataSegmentsArgs struct {
 	StartAddr *string `json:"start_addr,omitempty" jsonschema:"Start address for range filter (optional, defaults to binary start)"`
 	EndAddr   *string `json:"end_addr,omitempty" jsonschema:"End address for range filter (optional, defaults to binary end)"`
 }

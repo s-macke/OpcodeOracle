@@ -129,7 +129,7 @@ func registerTools(server *mcp.Server, cfg *Config) {
 	addSymbol := tools.NewAddSymbolTool(cfg.ToolCtx)
 	querySymbols := tools.NewQuerySymbolsTool(cfg.ToolCtx)
 	queryXRefs := tools.NewQueryXRefsTool(cfg.ToolCtx)
-	listSubroutines := tools.NewListSubroutinesTool(cfg.ToolCtx)
+	listSubroutinesAndDataSegments := tools.NewListSubroutinesAndDataSegmentsTool(cfg.ToolCtx)
 	getSubroutineContext := tools.NewGetSubroutineContextTool(cfg.ToolCtx)
 
 	mcp.AddTool(server, &mcp.Tool{
@@ -182,10 +182,10 @@ func registerTools(server *mcp.Server, cfg *Config) {
 	})
 
 	mcp.AddTool(server, &mcp.Tool{
-		Name:        "list_subroutines",
-		Description: "List all subroutines (and entry points) in the binary or within an address range. Shows subroutine addresses and names. Use to get an overview of the code structure.",
-	}, func(ctx context.Context, req *mcp.CallToolRequest, args ListSubroutinesArgs) (*mcp.CallToolResult, any, error) {
-		return delegate(ctx, listSubroutines, args, "list_subroutines", cfg)
+		Name:        "list_subroutines_and_data_segments",
+		Description: "List subroutine/entry, code, and data segments in the binary or within an address range. Subroutine rows include names and caller counts for quick code-structure overview.",
+	}, func(ctx context.Context, req *mcp.CallToolRequest, args ListSubroutinesAndDataSegmentsArgs) (*mcp.CallToolResult, any, error) {
+		return delegate(ctx, listSubroutinesAndDataSegments, args, "list_subroutines_and_data_segments", cfg)
 	})
 
 	mcp.AddTool(server, &mcp.Tool{
