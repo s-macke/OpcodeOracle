@@ -80,6 +80,21 @@ type rgb struct {
 	b uint8
 }
 
+type diffTag uint8
+
+const (
+	diffEqual diffTag = iota
+	diffInsert
+	diffDelete
+	diffReplace
+)
+
+type lineOp struct {
+	tag                diffTag
+	prevStart, prevEnd int
+	currStart, currEnd int
+}
+
 const (
 	kindAddress = iota
 	kindComment
@@ -671,53 +686,148 @@ func semanticNewPoints(prevLines []string, currLines []string, layout lineLayout
 	if len(curr) > maxVisible {
 		curr = curr[:maxVisible]
 	}
-
-	prefix := 0
-	for prefix < len(prev) && prefix < len(curr) && prev[prefix] == curr[prefix] {
-		prefix++
-	}
-
-	suffix := 0
-	for (len(prev)-1-suffix) >= prefix && (len(curr)-1-suffix) >= prefix {
-		if prev[len(prev)-1-suffix] != curr[len(curr)-1-suffix] {
-			break
-		}
-		suffix++
-	}
-
-	prevMidStart := prefix
-	prevMidEnd := len(prev) - suffix
-	currMidStart := prefix
-	currMidEnd := len(curr) - suffix
-
-	if prevMidEnd < prevMidStart {
-		prevMidEnd = prevMidStart
-	}
-	if currMidEnd < currMidStart {
-		currMidEnd = currMidStart
-	}
-
-	prevMid := prev[prevMidStart:prevMidEnd]
-	currMid := curr[currMidStart:currMidEnd]
-	common := min(len(prevMid), len(currMid))
-
-	for k := 0; k < common; k++ {
-		lineIdx := currMidStart + k
-		for _, charIdx := range changedCharPositions(prevMid[k], currMid[k], layout.maxLineLen) {
-			if p, ok := lineCharToPoint(lineIdx, charIdx, layout, width, height); ok {
-				out[p] = struct{}{}
+	ops := lineDiffOps(prev, curr)
+	for _, op := range ops {
+		switch op.tag {
+		case diffEqual, diffDelete:
+			continue
+		case diffInsert:
+			for lineIdx := op.currStart; lineIdx < op.currEnd; lineIdx++ {
+				for _, charIdx := range nonWhitespaceCharPositions(curr[lineIdx], layout.maxLineLen) {
+					if p, ok := lineCharToPoint(lineIdx, charIdx, layout, width, height); ok {
+						out[p] = struct{}{}
+					}
+				}
+			}
+		case diffReplace:
+			prevLen := op.prevEnd - op.prevStart
+			currLen := op.currEnd - op.currStart
+			common := min(prevLen, currLen)
+			for k := 0; k < common; k++ {
+				prevLine := prev[op.prevStart+k]
+				lineIdx := op.currStart + k
+				currLine := curr[lineIdx]
+				for _, charIdx := range changedCharPositions(prevLine, currLine, layout.maxLineLen) {
+					if p, ok := lineCharToPoint(lineIdx, charIdx, layout, width, height); ok {
+						out[p] = struct{}{}
+					}
+				}
+			}
+			for lineIdx := op.currStart + common; lineIdx < op.currEnd; lineIdx++ {
+				for _, charIdx := range nonWhitespaceCharPositions(curr[lineIdx], layout.maxLineLen) {
+					if p, ok := lineCharToPoint(lineIdx, charIdx, layout, width, height); ok {
+						out[p] = struct{}{}
+					}
+				}
 			}
 		}
 	}
 
-	for lineIdx := currMidStart + common; lineIdx < currMidEnd; lineIdx++ {
-		for _, charIdx := range nonWhitespaceCharPositions(curr[lineIdx], layout.maxLineLen) {
-			if p, ok := lineCharToPoint(lineIdx, charIdx, layout, width, height); ok {
-				out[p] = struct{}{}
+	return out
+}
+
+func lineDiffOps(prev, curr []string) []lineOp {
+	n := len(prev)
+	m := len(curr)
+	lcs := make([][]int, n+1)
+	for i := range lcs {
+		lcs[i] = make([]int, m+1)
+	}
+	for i := n - 1; i >= 0; i-- {
+		for j := m - 1; j >= 0; j-- {
+			if prev[i] == curr[j] {
+				lcs[i][j] = lcs[i+1][j+1] + 1
+			} else {
+				lcs[i][j] = max(lcs[i+1][j], lcs[i][j+1])
 			}
 		}
 	}
 
+	i, j := 0, 0
+	ops := make([]lineOp, 0, 16)
+	for i < n || j < m {
+		if i < n && j < m && prev[i] == curr[j] {
+			appendLineOp(&ops, diffEqual, i, i+1, j, j+1)
+			i++
+			j++
+			continue
+		}
+		if j < m && (i == n || lcs[i][j+1] >= lcs[i+1][j]) {
+			appendLineOp(&ops, diffInsert, i, i, j, j+1)
+			j++
+		} else if i < n {
+			appendLineOp(&ops, diffDelete, i, i+1, j, j)
+			i++
+		}
+	}
+	return coalesceReplaceOps(ops)
+}
+
+func appendLineOp(ops *[]lineOp, tag diffTag, ps, pe, cs, ce int) {
+	if len(*ops) == 0 {
+		*ops = append(*ops, lineOp{tag: tag, prevStart: ps, prevEnd: pe, currStart: cs, currEnd: ce})
+		return
+	}
+	last := &(*ops)[len(*ops)-1]
+	if last.tag == tag && last.prevEnd == ps && last.currEnd == cs {
+		last.prevEnd = pe
+		last.currEnd = ce
+		return
+	}
+	*ops = append(*ops, lineOp{tag: tag, prevStart: ps, prevEnd: pe, currStart: cs, currEnd: ce})
+}
+
+func coalesceReplaceOps(ops []lineOp) []lineOp {
+	out := make([]lineOp, 0, len(ops))
+	for i := 0; i < len(ops); {
+		op := ops[i]
+		if op.tag == diffDelete {
+			j := i
+			delStart := ops[j].prevStart
+			delEnd := ops[j].prevEnd
+			currPos := ops[j].currStart
+			for j+1 < len(ops) && ops[j+1].tag == diffDelete && ops[j+1].currStart == currPos {
+				j++
+				delEnd = ops[j].prevEnd
+			}
+			if j+1 < len(ops) && ops[j+1].tag == diffInsert && ops[j+1].prevStart == delEnd {
+				ins := ops[j+1]
+				out = append(out, lineOp{
+					tag:       diffReplace,
+					prevStart: delStart,
+					prevEnd:   delEnd,
+					currStart: ins.currStart,
+					currEnd:   ins.currEnd,
+				})
+				i = j + 2
+				continue
+			}
+		}
+		if op.tag == diffInsert {
+			j := i
+			insStart := ops[j].currStart
+			insEnd := ops[j].currEnd
+			prevPos := ops[j].prevStart
+			for j+1 < len(ops) && ops[j+1].tag == diffInsert && ops[j+1].prevStart == prevPos {
+				j++
+				insEnd = ops[j].currEnd
+			}
+			if j+1 < len(ops) && ops[j+1].tag == diffDelete && ops[j+1].currStart == insEnd {
+				del := ops[j+1]
+				out = append(out, lineOp{
+					tag:       diffReplace,
+					prevStart: del.prevStart,
+					prevEnd:   del.prevEnd,
+					currStart: insStart,
+					currEnd:   insEnd,
+				})
+				i = j + 2
+				continue
+			}
+		}
+		out = append(out, op)
+		i++
+	}
 	return out
 }
 
