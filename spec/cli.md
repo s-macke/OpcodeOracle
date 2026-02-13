@@ -17,6 +17,7 @@ opcodeoracle <command> [options] [arguments]
 | `new`    | Create new project from binary                 |
 | `info`   | Display state file information                 |
 | `export` | Export state to assembly files                 |
+| `edit`   | Edit state (annotations, symbols, reinterpret) |
 | `mcp`    | Start MCP server (stdio or streamable HTTP)   |
 
 ---
@@ -225,12 +226,15 @@ opcodeoracle mcp [options] <state-file>
 1. Loads the state file and initializes analysis context
 2. Registers MCP tools:
    - `view_disassembly`
+   - `search_disassembly`
    - `add_annotation`
    - `add_headline`
    - `add_symbol`
    - `query_symbols`
    - `query_xrefs`
-   - `list_subroutines`
+   - `reinterpret_as_code`
+   - `reinterpret_as_data`
+   - `list_subroutines_and_data_segments`
    - `get_subroutine_context`
 3. Starts transport:
    - `stdio`: newline-delimited JSON-RPC over stdin/stdout
@@ -271,3 +275,26 @@ opcodeoracle mcp --transport http --listen 127.0.0.1:8080 --path /mcp game.opcod
 | 3    | File read/write error    |
 | 4    | Invalid state file       |
 | 5    | Disassembly error        |
+
+---
+
+## `edit reinterpret` - Force Code/Data Reinterpretation
+
+Forces reinterpretation and reruns analysis from scratch.
+
+### Usage
+
+```bash
+opcodeoracle edit reinterpret <state-file> --code-address <addr>
+opcodeoracle edit reinterpret <state-file> --data-start <addr> --data-end <addr>
+```
+
+### Options
+
+| Option           | Required | Description |
+|------------------|----------|-------------|
+| `--code-address` | code mode only | Single address to force as code seed |
+| `--data-start`   | data mode only | Start of hard-locked data range |
+| `--data-end`     | data mode only | End of hard-locked data range |
+
+`--code-address` is mutually exclusive with `--data-start/--data-end`.

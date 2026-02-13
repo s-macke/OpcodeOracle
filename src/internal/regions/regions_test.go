@@ -285,3 +285,57 @@ func TestRegionTableValidateStartEndMismatch(t *testing.T) {
 		t.Fatal("Validate returned nil for mismatched coverage range")
 	}
 }
+
+func TestSetWithSourcePriorityPreventsAutoOverride(t *testing.T) {
+	table := NewTable()
+	table.SetRegions([]Region{
+		{Start: 0x0000, End: 0xFFFF, Type: RegionData, Source: RegionSourceAuto},
+	})
+
+	table.SetWithSource(0x1000, 0x10FF, RegionData, RegionSourceUser)
+	table.SetWithSource(0x1080, 0x1080, RegionCode, RegionSourceAuto)
+
+	r := table.RegionAt(0x1080)
+	if r == nil {
+		t.Fatal("RegionAt(0x1080) returned nil")
+	}
+	if r.Type != RegionData || r.Source != RegionSourceUser {
+		t.Fatalf("RegionAt(0x1080) = %+v, want user data lock", *r)
+	}
+}
+
+func TestSetWithSourceAssistantOverridesAuto(t *testing.T) {
+	table := NewTable()
+	table.SetRegions([]Region{
+		{Start: 0x0000, End: 0xFFFF, Type: RegionData, Source: RegionSourceAuto},
+	})
+
+	table.SetWithSource(0x1200, 0x1200, RegionCode, RegionSourceAssistant)
+
+	r := table.RegionAt(0x1200)
+	if r == nil {
+		t.Fatal("RegionAt(0x1200) returned nil")
+	}
+	if r.Type != RegionCode || r.Source != RegionSourceAssistant {
+		t.Fatalf("RegionAt(0x1200) = %+v, want assistant code", *r)
+	}
+}
+
+func TestAdjacentSameTypeDifferentSourceDoesNotMerge(t *testing.T) {
+	table := NewTable()
+	table.SetRegions([]Region{
+		{Start: 0x0000, End: 0xFFFF, Type: RegionData, Source: RegionSourceAuto},
+	})
+
+	table.SetWithSource(0x1000, 0x10FF, RegionData, RegionSourceAssistant)
+	table.SetWithSource(0x1100, 0x11FF, RegionData, RegionSourceUser)
+
+	r1 := table.RegionAt(0x10F0)
+	r2 := table.RegionAt(0x1101)
+	if r1 == nil || r2 == nil {
+		t.Fatal("expected regions in both ranges")
+	}
+	if r1.Source == r2.Source {
+		t.Fatalf("sources merged unexpectedly: r1=%+v r2=%+v", *r1, *r2)
+	}
+}

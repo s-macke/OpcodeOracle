@@ -122,6 +122,15 @@ func (t *Table) All() map[uint16]Symbol {
 	return t.symbols
 }
 
+// RemoveBySource removes all symbols generated from the given source.
+func (t *Table) RemoveBySource(source SymbolSource) {
+	for addr, sym := range t.symbols {
+		if sym.Source == source {
+			delete(t.symbols, addr)
+		}
+	}
+}
+
 // AddressedSymbol pairs a symbol with its address.
 type AddressedSymbol struct {
 	Addr   uint16

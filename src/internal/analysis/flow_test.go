@@ -16,7 +16,7 @@ func newTestState(data []byte, origin uint16, entryPoints []uint16) *state.State
 	// Create a full 64K region table initialized as data
 	rt := regions.NewTable()
 	rt.SetRegions([]regions.Region{
-		{Start: 0x0000, End: 0xFFFF, Type: regions.RegionData},
+		{Start: 0x0000, End: 0xFFFF, Type: regions.RegionData, Source: regions.RegionSourceAuto},
 	})
 
 	return &state.State{

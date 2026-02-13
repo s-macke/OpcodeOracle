@@ -131,6 +131,9 @@ func (a *Analyzer) process(addr uint16) error {
 	if a.visited[addr] {
 		return nil
 	}
+	if a.isHardDataLock(addr) {
+		return nil
+	}
 
 	// Check if address is within binary bounds
 	if !a.inBounds(addr) {
@@ -157,6 +160,14 @@ func (a *Analyzer) process(addr uint16) error {
 	if !a.inBounds(instrEnd) {
 		return fmt.Errorf("instruction at %04X extends beyond binary", addr)
 	}
+	for scan := addr; ; scan++ {
+		if a.isHardDataLock(scan) {
+			return fmt.Errorf("instruction at %04X intersects locked data region", addr)
+		}
+		if scan == instrEnd {
+			break
+		}
+	}
 
 	// Mark address as visited
 	a.visited[addr] = true
@@ -168,7 +179,7 @@ func (a *Analyzer) process(addr uint16) error {
 
 	// Mark instruction bytes as code
 	if a.flags&UpdateRegions != 0 {
-		a.state.Regions.Set(addr, instrEnd, regions.RegionCode)
+		a.state.Regions.SetWithSource(addr, instrEnd, regions.RegionCode, regions.RegionSourceAuto)
 	}
 
 	// Classify and handle the instruction
@@ -291,9 +302,14 @@ func (a *Analyzer) inBounds(addr uint16) bool {
 
 // enqueue adds an address to the analysis queue if not already visited.
 func (a *Analyzer) enqueue(addr uint16) {
-	if !a.visited[addr] && a.inBounds(addr) {
+	if !a.visited[addr] && a.inBounds(addr) && !a.isHardDataLock(addr) {
 		a.queue = append(a.queue, addr)
 	}
+}
+
+func (a *Analyzer) isHardDataLock(addr uint16) bool {
+	return a.state.Regions.At(addr) == regions.RegionData &&
+		a.state.Regions.SourceAt(addr) != regions.RegionSourceAuto
 }
 
 // addLabel adds an auto-generated label symbol at the target address.

@@ -40,6 +40,8 @@ func AllTools(ctx *Context) []tool.BaseTool {
 		NewAddSymbolTool(ctx),
 		NewQuerySymbolsTool(ctx),
 		NewQueryXRefsTool(ctx),
+		NewReinterpretAsCodeTool(ctx),
+		NewReinterpretAsDataTool(ctx),
 		NewListSubroutinesAndDataSegmentsTool(ctx),
 		NewGetSubroutineContextTool(ctx),
 	}

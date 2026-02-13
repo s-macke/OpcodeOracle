@@ -12,7 +12,7 @@ State files are JSON documents with the following structure:
 
 ```json
 {
-  "version": "1.0",
+  "version": "1.1",
   "metadata": { ... },
   "binary": { ... },
   "entryPoints": [ ... ],
@@ -34,7 +34,7 @@ State files are JSON documents with the following structure:
 | `entryPoints` | array  | Yes       | List of entry point addresses           |
 | `symbols`     | object | No        | User-defined and auto-generated symbols |
 | `annotations` | object | No        | Comments and notes                      |
-| `regions`     | array  | No        | Memory region classifications           |
+| `regions`     | array  | No        | Memory region classifications + source  |
 
 ### Metadata Object
 
@@ -162,24 +162,27 @@ Maps addresses to arrays of comments (multiple annotations per address supported
 
 ### Regions Array
 
-Defines memory region classifications. Regions must cover the entire 64KB address space (0x0000-0xFFFF) without gaps or overlaps. Adjacent regions of the same type should be merged.
+Defines memory region classifications. Regions must cover the entire 64KB address space (0x0000-0xFFFF) without gaps or overlaps. Adjacent regions with the same type and source should be merged.
 
 ```json
 "regions": [
   {
     "start": "0x0000",
     "end": "0x0800",
-    "type": "data"
+    "type": "data",
+    "source": "auto"
   },
   {
     "start": "0x0801",
     "end": "0x0FFF",
-    "type": "code"
+    "type": "code",
+    "source": "assistant"
   },
   {
     "start": "0x1000",
     "end": "0xFFFF",
-    "type": "data"
+    "type": "data",
+    "source": "auto"
   }
 ]
 ```
@@ -191,11 +194,19 @@ Defines memory region classifications. Regions must cover the entire 64KB addres
 | `code`     | Executable instructions |
 | `data`     | Generic data            |
 
+`source` controls priority for reinterpretation and analysis conflict resolution:
+- `user` > `assistant` > `auto`
+- auto analysis cannot override non-auto `data` regions.
+
+Legacy compatibility:
+- `forcedData` (if present in older files) is auto-migrated to `regions` as `data` with `source: "user"` on load.
+- New saves do not emit `forcedData`.
+
 ## Example: Minimal State File
 
 ```json
 {
-  "version": "1.0",
+  "version": "1.1",
   "metadata": {
     "created": "2025-01-22T10:30:00Z",
     "modified": "2025-01-22T10:30:00Z",
@@ -213,7 +224,7 @@ Defines memory region classifications. Regions must cover the entire 64KB addres
 
 ```json
 {
-  "version": "1.0",
+  "version": "1.1",
   "metadata": {
     "created": "2025-01-22T10:30:00Z",
     "modified": "2025-01-22T14:45:00Z",
@@ -246,9 +257,9 @@ Defines memory region classifications. Regions must cover the entire 64KB addres
     ]
   },
   "regions": [
-    {"start": "0x0000", "end": "0x0800", "type": "data"},
-    {"start": "0x0801", "end": "0x17FF", "type": "code"},
-    {"start": "0x1800", "end": "0xFFFF", "type": "data"}
+    {"start": "0x0000", "end": "0x0800", "type": "data", "source": "auto"},
+    {"start": "0x0801", "end": "0x17FF", "type": "code", "source": "assistant"},
+    {"start": "0x1800", "end": "0xFFFF", "type": "data", "source": "auto"}
   ]
 }
 ```
@@ -260,4 +271,4 @@ The `version` field follows semantic versioning:
 - **Minor**: New optional fields added
 - **Patch**: Documentation or validation changes
 
-Current version: `1.0`
+Current version: `1.1`

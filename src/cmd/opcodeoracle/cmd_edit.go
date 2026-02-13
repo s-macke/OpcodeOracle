@@ -9,6 +9,7 @@ func editCommand() *cli.Command {
 		Subcommands: []*cli.Command{
 			editAnnotationCommand(),
 			editHeadlineCommand(),
+			editReinterpretCommand(),
 			editSymbolCommand(),
 		},
 	}

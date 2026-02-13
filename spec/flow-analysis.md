@@ -45,6 +45,7 @@ func NewAnalyzer(s *state.State) *Analyzer
 // Seeds the work queue from:
 // - state.EntryPoints
 // - Existing symbols with type: SymbolSubroutine, SymbolLabel, SymbolEntry
+// - Existing code regions (region start addresses)
 func (a *Analyzer) Analyze() error
 
 // AnalyzeFrom performs flow analysis starting from a single address.
@@ -62,12 +63,14 @@ func (a *Analyzer) AnalyzeFrom(addr uint16) error
 2. While work queue is not empty:
    a. Pop address from queue
    b. If address already visited or outside binary bounds, skip
-   c. Decode instruction at address using opcodes table
-   d. If illegal opcode, skip (do not mark as code)
-   e. Mark instruction bytes as code
-   f. Record cross-references for control flow instructions
-   g. Generate symbols for targets
-   h. Based on instruction type:
+   c. If address is in forced-data range, skip
+   d. Decode instruction at address using opcodes table
+   e. If illegal opcode, skip (do not mark as code)
+   f. If instruction bytes intersect forced-data range, skip
+   g. Mark instruction bytes as code
+   h. Record cross-references for control flow instructions
+   i. Generate symbols for targets
+   j. Based on instruction type:
       - Sequential (most instructions): add next address to queue
       - Unconditional jump (JMP absolute): add target to queue, do NOT add next
       - Unconditional jump (JMP indirect): do NOT add any address (cannot follow statically)
@@ -110,6 +113,7 @@ Flow analysis populates the following state tables as it traverses code:
 As instructions are decoded:
 - Each instruction's bytes are marked as `code` in the RegionTable
 - After analysis completes, all bytes not marked as code remain as `data`
+- Any address in a non-auto `data` region (`source=user|assistant`) remains `data` (hard lock)
 
 See [regions-table.md](regions-table.md) for RegionTable interface.
 

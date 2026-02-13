@@ -47,6 +47,17 @@ type QueryXRefsArgs struct {
 	Direction *string `json:"direction,omitempty" jsonschema:"Direction of references: 'to' (who references this address), 'from' (what this address references), or 'both',enum=to,enum=from,enum=both"`
 }
 
+// ReinterpretAsCodeArgs are the arguments for the reinterpret_as_code tool.
+type ReinterpretAsCodeArgs struct {
+	CodeAddress string `json:"code_address" jsonschema:"Single address to force as code seed"`
+}
+
+// ReinterpretAsDataArgs are the arguments for the reinterpret_as_data tool.
+type ReinterpretAsDataArgs struct {
+	StartAddr string `json:"start_addr" jsonschema:"Range start to force as hard-locked data"`
+	EndAddr   string `json:"end_addr" jsonschema:"Range end to force as hard-locked data"`
+}
+
 // ListSubroutinesAndDataSegmentsArgs are the arguments for the list_subroutines_and_data_segments tool.
 type ListSubroutinesAndDataSegmentsArgs struct {
 	StartAddr *string `json:"start_addr,omitempty" jsonschema:"Start address for range filter (optional, defaults to binary start)"`

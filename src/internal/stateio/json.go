@@ -21,6 +21,7 @@ type jsonState struct {
 	Metadata    jsonMetadata                       `json:"metadata"`
 	Binary      jsonBinary                         `json:"binary"`
 	EntryPoints []string                           `json:"entryPoints"`
+	ForcedData  []jsonAddressRange                 `json:"forcedData,omitempty"` // legacy; load-only migration
 	Symbols     map[string]jsonSymbolValue         `json:"symbols,omitempty"`
 	Annotations map[string]*jsonAddressAnnotations `json:"annotations,omitempty"`
 	Headlines   map[string]*jsonAddressHeadlines   `json:"headlines,omitempty"`
@@ -93,9 +94,15 @@ type jsonHeadline struct {
 }
 
 type jsonRegion struct {
+	Start  string `json:"start"`
+	End    string `json:"end"`
+	Type   string `json:"type"`
+	Source string `json:"source,omitempty"`
+}
+
+type jsonAddressRange struct {
 	Start string `json:"start"`
 	End   string `json:"end"`
-	Type  string `json:"type"`
 }
 
 // parseHex parses a hex string like "0x0801" to uint16.
@@ -129,7 +136,6 @@ func stateToJSON(s *state.State) *jsonState {
 	for i, ep := range s.EntryPoints {
 		js.EntryPoints[i] = formatHex(ep)
 	}
-
 	// Convert symbols
 	if allSyms := s.Symbols.All(); len(allSyms) > 0 {
 		js.Symbols = make(map[string]jsonSymbolValue)
@@ -184,9 +190,10 @@ func stateToJSON(s *state.State) *jsonState {
 		js.Regions = make([]jsonRegion, len(regs))
 		for i, r := range regs {
 			js.Regions[i] = jsonRegion{
-				Start: formatHex(r.Start),
-				End:   formatHex(r.End),
-				Type:  string(r.Type),
+				Start:  formatHex(r.Start),
+				End:    formatHex(r.End),
+				Type:   string(r.Type),
+				Source: string(r.Source),
 			}
 		}
 	}
@@ -238,7 +245,6 @@ func jsonToState(js *jsonState) (*state.State, error) {
 		}
 		s.EntryPoints[i] = ep
 	}
-
 	// Convert symbols (handles both old array format and new single-symbol format)
 	for addrStr, symVal := range js.Symbols {
 		addr, err := parseHex(addrStr)
@@ -290,7 +296,7 @@ func jsonToState(js *jsonState) (*state.State, error) {
 	// Convert regions - default to full data region if empty
 	if len(js.Regions) == 0 {
 		s.Regions.SetRegions([]regions.Region{
-			{Start: 0x0000, End: 0xFFFF, Type: regions.RegionData},
+			{Start: 0x0000, End: 0xFFFF, Type: regions.RegionData, Source: regions.RegionSourceAuto},
 		})
 	} else {
 		regs := make([]regions.Region, len(js.Regions))
@@ -307,16 +313,39 @@ func jsonToState(js *jsonState) (*state.State, error) {
 			if regType != regions.RegionCode && regType != regions.RegionData {
 				return nil, fmt.Errorf("invalid region type %q", jr.Type)
 			}
+			source := regions.RegionSource(jr.Source)
+			if source == "" {
+				source = regions.RegionSourceAuto
+			}
+			if source != regions.RegionSourceAuto &&
+				source != regions.RegionSourceAssistant &&
+				source != regions.RegionSourceUser {
+				return nil, fmt.Errorf("invalid region source %q", jr.Source)
+			}
 			regs[i] = regions.Region{
-				Start: start,
-				End:   end,
-				Type:  regType,
+				Start:  start,
+				End:    end,
+				Type:   regType,
+				Source: source,
 			}
 		}
 		s.Regions.SetRegions(regs)
 		if err := s.Regions.Validate(); err != nil {
 			return nil, fmt.Errorf("invalid regions: %w", err)
 		}
+	}
+
+	// Legacy migration: forcedData -> high-priority data regions.
+	for _, fr := range js.ForcedData {
+		start, err := parseHex(fr.Start)
+		if err != nil {
+			return nil, fmt.Errorf("invalid forcedData start: %w", err)
+		}
+		end, err := parseHex(fr.End)
+		if err != nil {
+			return nil, fmt.Errorf("invalid forcedData end: %w", err)
+		}
+		s.Regions.SetWithSource(start, end, regions.RegionData, regions.RegionSourceUser)
 	}
 
 	return s, nil

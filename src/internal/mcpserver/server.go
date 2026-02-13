@@ -129,6 +129,8 @@ func registerTools(server *mcp.Server, cfg *Config) {
 	addSymbol := tools.NewAddSymbolTool(cfg.ToolCtx)
 	querySymbols := tools.NewQuerySymbolsTool(cfg.ToolCtx)
 	queryXRefs := tools.NewQueryXRefsTool(cfg.ToolCtx)
+	reinterpretAsCode := tools.NewReinterpretAsCodeTool(cfg.ToolCtx)
+	reinterpretAsData := tools.NewReinterpretAsDataTool(cfg.ToolCtx)
 	listSubroutinesAndDataSegments := tools.NewListSubroutinesAndDataSegmentsTool(cfg.ToolCtx)
 	getSubroutineContext := tools.NewGetSubroutineContextTool(cfg.ToolCtx)
 
@@ -179,6 +181,20 @@ func registerTools(server *mcp.Server, cfg *Config) {
 		Description: "Query cross-references to or from an address. Shows calls, jumps, branches, and data accesses. Use to understand how code is connected.",
 	}, func(ctx context.Context, req *mcp.CallToolRequest, args QueryXRefsArgs) (*mcp.CallToolResult, any, error) {
 		return delegate(ctx, queryXRefs, args, "query_xrefs", cfg)
+	})
+
+	mcp.AddTool(server, &mcp.Tool{
+		Name:        "reinterpret_as_code",
+		Description: "Force reinterpretation of one address as code seed, then rerun analysis from scratch to rebuild regions, symbols, xrefs, and CFG.",
+	}, func(ctx context.Context, req *mcp.CallToolRequest, args ReinterpretAsCodeArgs) (*mcp.CallToolResult, any, error) {
+		return delegateAndSave(ctx, reinterpretAsCode, args, "reinterpret_as_code", cfg)
+	})
+
+	mcp.AddTool(server, &mcp.Tool{
+		Name:        "reinterpret_as_data",
+		Description: "Force reinterpretation of a range as hard-locked data, then rerun analysis from scratch to rebuild regions, symbols, xrefs, and CFG.",
+	}, func(ctx context.Context, req *mcp.CallToolRequest, args ReinterpretAsDataArgs) (*mcp.CallToolResult, any, error) {
+		return delegateAndSave(ctx, reinterpretAsData, args, "reinterpret_as_data", cfg)
 	})
 
 	mcp.AddTool(server, &mcp.Tool{

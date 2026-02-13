@@ -19,7 +19,7 @@ func NewState(data []byte, origin uint16, entryPoints []uint16, sourceFile strin
 
 	regTable := regions.NewTable()
 	regTable.SetRegions([]regions.Region{
-		{Start: 0x0000, End: 0xFFFF, Type: regions.RegionData},
+		{Start: 0x0000, End: 0xFFFF, Type: regions.RegionData, Source: regions.RegionSourceAuto},
 	})
 
 	return &State{

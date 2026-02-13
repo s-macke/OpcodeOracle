@@ -35,6 +35,7 @@ func TestSaveLoad(t *testing.T) {
 	original.Headlines.Set(0x0801, "Program Start", author.Assistant)
 
 	original.Regions.Set(0x0801, 0x0900, regions.RegionCode)
+	original.Regions.SetWithSource(0x0A00, 0x0AFF, regions.RegionData, regions.RegionSourceUser)
 
 	// Save
 	if err := Save(original, path); err != nil {
@@ -109,6 +110,10 @@ func TestSaveLoad(t *testing.T) {
 	if reg == nil || reg.Type != regions.RegionCode {
 		t.Errorf("Region at 0x0850 = %v, want code region", reg)
 	}
+	reg = loaded.Regions.RegionAt(0x0A50)
+	if reg == nil || reg.Type != regions.RegionData || reg.Source != regions.RegionSourceUser {
+		t.Errorf("Region at 0x0A50 = %v, want user data region", reg)
+	}
 }
 
 func TestLoadMinimal(t *testing.T) {
@@ -174,6 +179,9 @@ func TestLoadNewFormat(t *testing.T) {
     "origin": "0x0801"
   },
   "entryPoints": ["0x0801", "0x1000"],
+  "forcedData": [
+    {"start": "0x0810", "end": "0x081F"}
+  ],
   "symbols": {
     "0x0801": [
       {"name": "start", "type": "entry", "source": "user"}
@@ -240,6 +248,10 @@ func TestLoadNewFormat(t *testing.T) {
 	reg := s.Regions.RegionAt(0x0850)
 	if reg == nil || reg.Type != regions.RegionCode {
 		t.Errorf("Region at 0x0850 = %v, want code region", reg)
+	}
+	reg = s.Regions.RegionAt(0x0815)
+	if reg == nil || reg.Type != regions.RegionData || reg.Source != regions.RegionSourceUser {
+		t.Errorf("Region at 0x0815 = %v, want migrated user data lock", reg)
 	}
 	reg = s.Regions.RegionAt(0x0500)
 	if reg == nil || reg.Type != regions.RegionData {

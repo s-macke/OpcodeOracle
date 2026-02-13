@@ -12,10 +12,19 @@ const (
 	RegionData RegionType = "data"
 )
 
+type RegionSource string
+
+const (
+	RegionSourceAuto      RegionSource = "auto"
+	RegionSourceAssistant RegionSource = "assistant"
+	RegionSourceUser      RegionSource = "user"
+)
+
 type Region struct {
-	Start uint16
-	End   uint16
-	Type  RegionType
+	Start  uint16
+	End    uint16
+	Type   RegionType
+	Source RegionSource
 }
 
 type Table struct {
@@ -48,16 +57,45 @@ func (t *Table) At(addr uint16) RegionType {
 	return r.Type
 }
 
+// SourceAt returns the region source at the given address.
+func (t *Table) SourceAt(addr uint16) RegionSource {
+	r := t.RegionAt(addr)
+	if r == nil {
+		return RegionSourceAuto
+	}
+	return normalizeSource(r.Source)
+}
+
 // Set sets the region type for the given address range.
 // Handles splitting and merging of existing regions.
 func (t *Table) Set(start, end uint16, regionType RegionType) {
+	t.SetWithSource(start, end, regionType, RegionSourceAuto)
+}
+
+// SetWithSource sets region type + source for the given range, respecting source priority.
+func (t *Table) SetWithSource(start, end uint16, regionType RegionType, source RegionSource) {
 	if start > end {
+		return
+	}
+	source = normalizeSource(source)
+
+	if len(t.regions) == 0 {
+		t.regions = []Region{{
+			Start:  start,
+			End:    end,
+			Type:   regionType,
+			Source: source,
+		}}
+		if err := t.Validate(); err != nil {
+			panic(err)
+		}
 		return
 	}
 
 	var result []Region
 
 	for _, r := range t.regions {
+		r.Source = normalizeSource(r.Source)
 		// Region is completely before new range
 		if r.End < start {
 			result = append(result, r)
@@ -68,17 +106,44 @@ func (t *Table) Set(start, end uint16, regionType RegionType) {
 			result = append(result, r)
 			continue
 		}
-		// Region overlaps - split if needed
+
+		// Region overlaps - split into left/overlap/right and apply source priority to overlap.
 		if r.Start < start {
-			result = append(result, Region{Start: r.Start, End: start - 1, Type: r.Type})
+			result = append(result, Region{
+				Start:  r.Start,
+				End:    start - 1,
+				Type:   r.Type,
+				Source: r.Source,
+			})
 		}
+
+		overlapStart := max16(r.Start, start)
+		overlapEnd := min16(r.End, end)
+		if sourcePriority(source) >= sourcePriority(r.Source) {
+			result = append(result, Region{
+				Start:  overlapStart,
+				End:    overlapEnd,
+				Type:   regionType,
+				Source: source,
+			})
+		} else {
+			result = append(result, Region{
+				Start:  overlapStart,
+				End:    overlapEnd,
+				Type:   r.Type,
+				Source: r.Source,
+			})
+		}
+
 		if r.End > end {
-			result = append(result, Region{Start: end + 1, End: r.End, Type: r.Type})
+			result = append(result, Region{
+				Start:  end + 1,
+				End:    r.End,
+				Type:   r.Type,
+				Source: r.Source,
+			})
 		}
 	}
-
-	// Add the new region
-	result = append(result, Region{Start: start, End: end, Type: regionType})
 
 	// Sort by start address
 	sort.Slice(result, func(i, j int) bool {
@@ -121,7 +186,7 @@ func (t *Table) Validate() error {
 			return fmt.Errorf("gap between regions at %04X-%04X and %04X-%04X",
 				prev.Start, prev.End, curr.Start, curr.End)
 		}
-		if curr.Type == prev.Type {
+		if curr.Type == prev.Type && normalizeSource(curr.Source) == normalizeSource(prev.Source) {
 			return fmt.Errorf("adjacent regions not merged at %04X-%04X and %04X-%04X",
 				prev.Start, prev.End, curr.Start, curr.End)
 		}
@@ -142,10 +207,14 @@ func merge(regions []Region) []Region {
 
 	var merged []Region
 	current := regions[0]
+	current.Source = normalizeSource(current.Source)
 
 	for i := 1; i < len(regions); i++ {
+		regions[i].Source = normalizeSource(regions[i].Source)
 		// Check if adjacent and same type
-		if regions[i].Start == current.End+1 && regions[i].Type == current.Type {
+		if regions[i].Start == current.End+1 &&
+			regions[i].Type == current.Type &&
+			normalizeSource(regions[i].Source) == normalizeSource(current.Source) {
 			current.End = regions[i].End
 		} else {
 			merged = append(merged, current)
@@ -164,5 +233,46 @@ func (t *Table) Regions() []Region {
 
 // SetRegions replaces all regions.
 func (t *Table) SetRegions(regions []Region) {
-	t.regions = regions
+	normalized := make([]Region, len(regions))
+	for i, r := range regions {
+		normalized[i] = Region{
+			Start:  r.Start,
+			End:    r.End,
+			Type:   r.Type,
+			Source: normalizeSource(r.Source),
+		}
+	}
+	t.regions = normalized
+}
+
+func sourcePriority(source RegionSource) int {
+	switch normalizeSource(source) {
+	case RegionSourceUser:
+		return 3
+	case RegionSourceAssistant:
+		return 2
+	default:
+		return 1
+	}
+}
+
+func normalizeSource(source RegionSource) RegionSource {
+	if source == "" {
+		return RegionSourceAuto
+	}
+	return source
+}
+
+func min16(a, b uint16) uint16 {
+	if a < b {
+		return a
+	}
+	return b
+}
+
+func max16(a, b uint16) uint16 {
+	if a > b {
+		return a
+	}
+	return b
 }
