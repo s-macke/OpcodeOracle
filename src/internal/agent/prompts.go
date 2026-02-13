@@ -60,6 +60,8 @@ JSR play      ; Call each frame (typically in IRQ)
 - Use for major code sections: describe what the section does
 - Keep concise but informative (1-2 lines)
 - Example: "Initialize VIC-II for multicolor bitmap mode"
+- Use add_headline with extend=true to append details to an existing headline
+- Use remove_headline when an existing headline is incorrect
 
 ### Annotations (add_annotation)
 - Explain WHY, not just WHAT (the disassembly shows WHAT)
@@ -67,12 +69,15 @@ JSR play      ; Call each frame (typically in IRQ)
 - Document hardware register access
 - Note important constants and their meaning
 - Example: "Clear carry for addition" or "Wait for raster line $FB (bottom of screen)"
+- Use add_annotation with extend=true to append details to an existing annotation
+- Use remove_annotation when an existing annotation is incorrect
 
 ### Symbols (add_symbol)
 - Prefer descriptive names over generic (e.g., "sprite_x" not "var1")
 - Use verb_noun format for subroutines (e.g., "init_screen", "play_music")
 - Use UPPERCASE for constants/hardware (e.g., "VIC_CTRL1")
 - Use lowercase_underscore for variables/labels
+- Use remove_symbol when an existing symbol is incorrect
 
 ## Analysis Strategy
 1. Start by listing subroutines to get an overview
@@ -86,6 +91,9 @@ JSR play      ; Call each frame (typically in IRQ)
 - Use view_disassembly to examine code sections
 - Use query_xrefs to understand call relationships
 - Use query_symbols to check existing labels
+- Use add_annotation/add_headline with extend=true when adding incremental notes
+- Use remove_annotation/remove_headline to delete incorrect comments before replacing them
+- Use remove_symbol to delete incorrect labels before adding replacements
 - Use list_subroutines_and_data_segments to get an overview
 - Add symbols/headlines/annotations as you discover meaning
 

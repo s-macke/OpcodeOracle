@@ -125,8 +125,11 @@ func registerTools(server *mcp.Server, cfg *Config) {
 	viewDisassembly := tools.NewViewDisassemblyTool(cfg.ToolCtx)
 	searchDisassembly := tools.NewSearchDisassemblyTool(cfg.ToolCtx)
 	addAnnotation := tools.NewAddAnnotationTool(cfg.ToolCtx)
+	removeAnnotation := tools.NewRemoveAnnotationTool(cfg.ToolCtx)
 	addHeadline := tools.NewAddHeadlineTool(cfg.ToolCtx)
+	removeHeadline := tools.NewRemoveHeadlineTool(cfg.ToolCtx)
 	addSymbol := tools.NewAddSymbolTool(cfg.ToolCtx)
+	removeSymbol := tools.NewRemoveSymbolTool(cfg.ToolCtx)
 	querySymbols := tools.NewQuerySymbolsTool(cfg.ToolCtx)
 	queryXRefs := tools.NewQueryXRefsTool(cfg.ToolCtx)
 	reinterpretAsCode := tools.NewReinterpretAsCodeTool(cfg.ToolCtx)
@@ -150,16 +153,30 @@ func registerTools(server *mcp.Server, cfg *Config) {
 
 	mcp.AddTool(server, &mcp.Tool{
 		Name:        "add_annotation",
-		Description: "Add an inline comment (annotation) at a specific address. Annotations appear on the same line as instructions. Use to explain WHY code does something, not just WHAT it does.",
+		Description: "Add an inline comment (annotation) at a specific address. Annotations appear on the same line as instructions. Use to explain WHY code does something, not just WHAT it does. Set extend=true to append instead of replacing.",
 	}, func(ctx context.Context, req *mcp.CallToolRequest, args AddAnnotationArgs) (*mcp.CallToolResult, any, error) {
 		return delegateAndSave(ctx, addAnnotation, args, "add_annotation", cfg)
 	})
 
 	mcp.AddTool(server, &mcp.Tool{
+		Name:        "remove_annotation",
+		Description: "Remove an inline annotation at a specific address. Defaults to assistant-authored annotation unless author is provided.",
+	}, func(ctx context.Context, req *mcp.CallToolRequest, args RemoveAnnotationArgs) (*mcp.CallToolResult, any, error) {
+		return delegateAndSave(ctx, removeAnnotation, args, "remove_annotation", cfg)
+	})
+
+	mcp.AddTool(server, &mcp.Tool{
 		Name:        "add_headline",
-		Description: "Add a block comment (headline) above an address. Headlines appear as separate comment lines before the instruction. Use for subroutine descriptions, section headers, and major code block explanations.",
+		Description: "Add a block comment (headline) above an address. Headlines appear as separate comment lines before the instruction. Use for subroutine descriptions, section headers, and major code block explanations. Set extend=true to append instead of replacing.",
 	}, func(ctx context.Context, req *mcp.CallToolRequest, args AddHeadlineArgs) (*mcp.CallToolResult, any, error) {
 		return delegateAndSave(ctx, addHeadline, args, "add_headline", cfg)
+	})
+
+	mcp.AddTool(server, &mcp.Tool{
+		Name:        "remove_headline",
+		Description: "Remove a block comment (headline) at a specific address. Defaults to assistant-authored headline unless author is provided.",
+	}, func(ctx context.Context, req *mcp.CallToolRequest, args RemoveHeadlineArgs) (*mcp.CallToolResult, any, error) {
+		return delegateAndSave(ctx, removeHeadline, args, "remove_headline", cfg)
 	})
 
 	mcp.AddTool(server, &mcp.Tool{
@@ -167,6 +184,13 @@ func registerTools(server *mcp.Server, cfg *Config) {
 		Description: "Add or rename a symbol at an address. Symbols provide meaningful names for subroutines, labels, and data locations. Prefer descriptive names over generic ones.",
 	}, func(ctx context.Context, req *mcp.CallToolRequest, args AddSymbolArgs) (*mcp.CallToolResult, any, error) {
 		return delegateAndSave(ctx, addSymbol, args, "add_symbol", cfg)
+	})
+
+	mcp.AddTool(server, &mcp.Tool{
+		Name:        "remove_symbol",
+		Description: "Remove a symbol at an address. If name is provided, removal only happens when it matches the symbol at that address.",
+	}, func(ctx context.Context, req *mcp.CallToolRequest, args RemoveSymbolArgs) (*mcp.CallToolResult, any, error) {
+		return delegateAndSave(ctx, removeSymbol, args, "remove_symbol", cfg)
 	})
 
 	mcp.AddTool(server, &mcp.Tool{

@@ -18,12 +18,26 @@ type SearchDisassemblyArgs struct {
 type AddAnnotationArgs struct {
 	Address string `json:"address" jsonschema:"Address in hex (e.g. '$C000' or '0xC000')"`
 	Comment string `json:"comment" jsonschema:"The annotation text explaining the instruction's purpose"`
+	Extend  *bool  `json:"extend,omitempty" jsonschema:"Append to existing assistant annotation instead of replacing (optional, default false)"`
+}
+
+// RemoveAnnotationArgs are the arguments for the remove_annotation tool.
+type RemoveAnnotationArgs struct {
+	Address string  `json:"address" jsonschema:"Address in hex (e.g. '$C000' or '0xC000')"`
+	Author  *string `json:"author,omitempty" jsonschema:"Annotation author to remove (optional),enum=assistant,enum=user"`
 }
 
 // AddHeadlineArgs are the arguments for the add_headline tool.
 type AddHeadlineArgs struct {
 	Address string `json:"address" jsonschema:"Address in hex (e.g. '$C000' or '0xC000') - typically a subroutine entry point"`
 	Comment string `json:"comment" jsonschema:"The headline text describing the subroutine or section (can be multi-line)"`
+	Extend  *bool  `json:"extend,omitempty" jsonschema:"Append to existing assistant headline instead of replacing (optional, default false)"`
+}
+
+// RemoveHeadlineArgs are the arguments for the remove_headline tool.
+type RemoveHeadlineArgs struct {
+	Address string  `json:"address" jsonschema:"Address in hex (e.g. '$C000' or '0xC000')"`
+	Author  *string `json:"author,omitempty" jsonschema:"Headline author to remove (optional),enum=assistant,enum=user"`
 }
 
 // AddSymbolArgs are the arguments for the add_symbol tool.
@@ -31,6 +45,12 @@ type AddSymbolArgs struct {
 	Address    string  `json:"address" jsonschema:"Address in hex (e.g. '$C000' or '0xC000')"`
 	Name       string  `json:"name" jsonschema:"Symbol name (e.g. 'init_screen', 'sprite_x', 'VIC_CTRL1')"`
 	SymbolType *string `json:"symbol_type,omitempty" jsonschema:"Type of symbol,enum=subroutine,enum=label,enum=byte,enum=word"`
+}
+
+// RemoveSymbolArgs are the arguments for the remove_symbol tool.
+type RemoveSymbolArgs struct {
+	Address string  `json:"address" jsonschema:"Address in hex (e.g. '$C000' or '0xC000')"`
+	Name    *string `json:"name,omitempty" jsonschema:"Optional symbol name guard. If set, removal only happens when names match."`
 }
 
 // QuerySymbolsArgs are the arguments for the query_symbols tool.

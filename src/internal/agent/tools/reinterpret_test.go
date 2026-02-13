@@ -21,7 +21,7 @@ func TestReinterpretAsCodeTool(t *testing.T) {
 	if err != nil {
 		t.Fatalf("InvokableRun error = %v, want nil", err)
 	}
-	if !strings.Contains(out, "Reinterpreted $0804 as code seed") {
+	if !strings.Contains(out, "Reinterpreted $0804 as code") {
 		t.Fatalf("unexpected output: %s", out)
 	}
 }

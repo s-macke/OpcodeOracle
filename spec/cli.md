@@ -227,9 +227,12 @@ opcodeoracle mcp [options] <state-file>
 2. Registers MCP tools:
    - `view_disassembly`
    - `search_disassembly`
-   - `add_annotation`
-   - `add_headline`
+   - `add_annotation` (supports optional `extend`)
+   - `remove_annotation`
+   - `add_headline` (supports optional `extend`)
+   - `remove_headline`
    - `add_symbol`
+   - `remove_symbol`
    - `query_symbols`
    - `query_xrefs`
    - `reinterpret_as_code`

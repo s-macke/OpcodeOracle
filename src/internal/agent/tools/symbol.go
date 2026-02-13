@@ -113,6 +113,80 @@ func (t *AddSymbolTool) InvokableRun(_ context.Context, argumentsInJSON string, 
 
 var _ tool.InvokableTool = (*AddSymbolTool)(nil)
 
+// RemoveSymbolTool allows removing symbols at addresses.
+type RemoveSymbolTool struct {
+	ctx *Context
+}
+
+// NewRemoveSymbolTool creates a new remove_symbol tool.
+func NewRemoveSymbolTool(ctx *Context) *RemoveSymbolTool {
+	return &RemoveSymbolTool{ctx: ctx}
+}
+
+type removeSymbolParams struct {
+	Address string `json:"address"`
+	Name    string `json:"name"`
+}
+
+// Info returns the tool's metadata.
+func (t *RemoveSymbolTool) Info(_ context.Context) (*schema.ToolInfo, error) {
+	return &schema.ToolInfo{
+		Name: "remove_symbol",
+		Desc: "Remove a symbol at an address. If name is provided, removal only happens when it matches the symbol at that address.",
+		ParamsOneOf: schema.NewParamsOneOfByParams(map[string]*schema.ParameterInfo{
+			"address": {
+				Type:     schema.String,
+				Desc:     "Address in hex (e.g., '$C000' or '0xC000')",
+				Required: true,
+			},
+			"name": {
+				Type:     schema.String,
+				Desc:     "Optional symbol name guard. If set, symbol is removed only when names match.",
+				Required: false,
+			},
+		}),
+	}, nil
+}
+
+// InvokableRun executes the tool.
+func (t *RemoveSymbolTool) InvokableRun(_ context.Context, argumentsInJSON string, _ ...tool.Option) (string, error) {
+	t.ctx.Mu.Lock()
+	defer t.ctx.Mu.Unlock()
+
+	var params removeSymbolParams
+	if err := json.Unmarshal([]byte(argumentsInJSON), &params); err != nil {
+		return fmt.Sprintf("Error: failed to parse arguments: %v", err), nil
+	}
+
+	addr, err := numparse.ParseUint16(params.Address)
+	if err != nil {
+		return fmt.Sprintf("Error: invalid address: %v", err), nil
+	}
+
+	existing, ok := t.ctx.State.Symbols.At(addr)
+	if !ok {
+		return fmt.Sprintf("No symbol found at $%04X", addr), nil
+	}
+	if params.Name != "" && existing.Name != params.Name {
+		return fmt.Sprintf("Error: symbol at $%04X is '%s', not '%s'", addr, existing.Name, params.Name), nil
+	}
+
+	if t.ctx.DryRun {
+		t.ctx.Changes = append(t.ctx.Changes, Change{
+			Type:    "symbol",
+			Address: addr,
+			Value:   fmt.Sprintf("remove %s (%s)", existing.Name, existing.Type),
+		})
+		return fmt.Sprintf("Would remove symbol at $%04X: %s (%s)", addr, existing.Name, existing.Type), nil
+	}
+
+	t.ctx.State.Symbols.RemoveAt(addr)
+	t.ctx.MutationCount++
+	return fmt.Sprintf("Removed symbol at $%04X: %s (%s)", addr, existing.Name, existing.Type), nil
+}
+
+var _ tool.InvokableTool = (*RemoveSymbolTool)(nil)
+
 // QuerySymbolsTool allows querying the symbol table.
 type QuerySymbolsTool struct {
 	ctx *Context

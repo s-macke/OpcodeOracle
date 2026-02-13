@@ -117,6 +117,17 @@ func (t *Table) Remove(addr uint16, name string) {
 	}
 }
 
+// RemoveAt removes whichever symbol exists at the given address.
+// Returns the removed symbol and true when a symbol was present.
+func (t *Table) RemoveAt(addr uint16) (Symbol, bool) {
+	sym, ok := t.symbols[addr]
+	if !ok {
+		return Symbol{}, false
+	}
+	delete(t.symbols, addr)
+	return sym, true
+}
+
 // All returns all symbols as a map from address to symbol.
 func (t *Table) All() map[uint16]Symbol {
 	return t.symbols
