@@ -31,6 +31,43 @@ func ParseUint16(s string) (uint16, error) {
 	return uint16(val), nil
 }
 
+// ParseUint16List parses a comma-separated list of uint16 values.
+// Each value may be decimal or explicit hex ($NNNN or 0xNNNN).
+// Duplicate values are removed while preserving first-seen order.
+func ParseUint16List(s string) ([]uint16, error) {
+	s = strings.TrimSpace(s)
+	if s == "" {
+		return nil, fmt.Errorf("empty value")
+	}
+
+	parts := strings.Split(s, ",")
+	values := make([]uint16, 0, len(parts))
+	seen := make(map[uint16]struct{}, len(parts))
+
+	for i, part := range parts {
+		token := strings.TrimSpace(part)
+		if token == "" {
+			return nil, fmt.Errorf("empty value at position %d", i+1)
+		}
+
+		val, err := ParseUint16(token)
+		if err != nil {
+			return nil, fmt.Errorf("invalid value %q: %w", token, err)
+		}
+
+		if _, ok := seen[val]; ok {
+			continue
+		}
+		seen[val] = struct{}{}
+		values = append(values, val)
+	}
+
+	if len(values) == 0 {
+		return nil, fmt.Errorf("empty value")
+	}
+	return values, nil
+}
+
 // ParseHexUint16 parses a hex uint16 from either 0xNNNN or bare hex NNNN.
 func ParseHexUint16(s string) (uint16, error) {
 	s = strings.TrimSpace(s)

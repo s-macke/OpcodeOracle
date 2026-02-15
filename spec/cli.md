@@ -36,7 +36,7 @@ opcodeoracle new <type> <binary-file> [options]
 
 | Type  | Description                     | Required Options                |
 |-------|---------------------------------|---------------------------------|
-| `bin` | Raw binary data                 | `--skip`, `--entry`, `--origin` |
+| `bin` | Raw binary data                 | `--entry`                       |
 | `prg` | C64 PRG file with load address  | `--entry`                       |
 | `sid` | SID music file                  | (none)                          |
 
@@ -46,9 +46,9 @@ opcodeoracle new <type> <binary-file> [options]
 |-------------|------------------|---------------|------------------------------------------|
 | Type        | positional       | Yes           | File type: `bin`, `prg`, or `sid`        |
 | Binary file | positional       | Yes           | Path to the binary file                  |
-| Skip bytes  | `-s`, `--skip`   | bin only      | Bytes to skip at start of file           |
-| Entry point | `-e`, `--entry`  | bin, prg      | Entry point address                      |
-| Origin      | `-o`, `--origin` | bin only      | Load address/origin                      |
+| Skip bytes  | `-s`, `--skip`   | No (default `0`) | Bytes to skip at start of file        |
+| Entry point | `-e`, `--entry`  | bin, prg      | Entry point address(es), comma-separated |
+| Origin      | `-o`, `--origin` | No (default `0`) | Load address/origin                   |
 
 ### Number Format
 
@@ -64,16 +64,16 @@ Numeric parameters accept decimal or hexadecimal values:
 
 #### Raw Binary (`bin`)
 
-Raw binary files require all addressing information:
-- `--skip`: Number of bytes to skip at the beginning (header, etc.)
-- `--origin`: Address where the binary is loaded in memory
-- `--entry`: Address where code execution begins
+Raw binary files require entry point information:
+- `--skip`: Number of bytes to skip at the beginning (header, etc.); defaults to `0`
+- `--origin`: Address where the binary is loaded in memory; defaults to `0`
+- `--entry`: Address(es) where code execution begins (required, comma-separated)
 
 #### C64 PRG (`prg`)
 
 PRG files contain a 2-byte load address header:
 - Origin is read from the first two bytes (little-endian)
-- `--entry`: Required, specifies code start address
+- `--entry`: Required, specifies code start address(es), comma-separated
 
 #### SID File (`sid`)
 
@@ -98,8 +98,16 @@ Creates a state file named `<binary-name>.opcodeoracle.json` (replacing the orig
 ### Examples
 
 ```bash
-# Raw binary - all parameters required (hex with $)
+# Raw binary - optional skip/origin (hex with $)
 opcodeoracle new bin code.bin --skip 2 --origin $0800 --entry $0800
+# Creates: code.opcodeoracle.json
+
+# Raw binary - skip/origin use defaults (0)
+opcodeoracle new bin code.bin --entry $0800
+# Creates: code.opcodeoracle.json
+
+# Raw binary - multiple entry points
+opcodeoracle new bin code.bin --entry "$0800,$0810,2064"
 # Creates: code.opcodeoracle.json
 
 # C64 PRG file - hex with 0x prefix
@@ -108,6 +116,10 @@ opcodeoracle new prg game.prg --entry 0x0810
 
 # Decimal values also work
 opcodeoracle new prg game.prg --entry 2064
+# Creates: game.opcodeoracle.json
+
+# PRG file - multiple entry points
+opcodeoracle new prg game.prg --entry "0x0810,2064"
 # Creates: game.opcodeoracle.json
 
 # SID file - everything from header

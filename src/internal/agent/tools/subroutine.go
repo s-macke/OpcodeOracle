@@ -83,6 +83,10 @@ func (t *ListSubroutinesAndDataSegmentsTool) InvokableRun(_ context.Context, arg
 	segs := segments.FilterIntersecting(allSegs, startAddr, endAddr)
 
 	var results []string
+	if desc := t.ctx.State.Metadata.Description; desc != "" {
+		results = append(results, fmt.Sprintf("Description: %s", desc))
+		results = append(results, "")
+	}
 	results = append(results, fmt.Sprintf("Found %d segments in range $%04X-$%04X:", len(segs), startAddr, endAddr))
 
 	var subLines []string

@@ -63,3 +63,44 @@ func TestParseHexUint16(t *testing.T) {
 		})
 	}
 }
+
+func TestParseUint16List(t *testing.T) {
+	tests := []struct {
+		name    string
+		input   string
+		want    []uint16
+		wantErr bool
+	}{
+		{name: "single_decimal", input: "1234", want: []uint16{1234}},
+		{name: "single_hex", input: "$C000", want: []uint16{0xC000}},
+		{name: "multiple_mixed_formats", input: "$0800,0x0810,2065", want: []uint16{0x0800, 0x0810, 2065}},
+		{name: "whitespace", input: " $0800 , 0x0810 , 2065 ", want: []uint16{0x0800, 0x0810, 2065}},
+		{name: "deduplicate_preserve_order", input: "$0800,0x0810,$0800,2065,2065", want: []uint16{0x0800, 0x0810, 2065}},
+		{name: "empty", input: "", wantErr: true},
+		{name: "trailing_comma", input: "$0800,", wantErr: true},
+		{name: "leading_comma", input: ",$0800", wantErr: true},
+		{name: "double_comma", input: "$0800,,$0810", wantErr: true},
+		{name: "invalid_token", input: "$0800,invalid", wantErr: true},
+		{name: "overflow_token", input: "$0800,70000", wantErr: true},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			got, err := ParseUint16List(tc.input)
+			if (err != nil) != tc.wantErr {
+				t.Fatalf("ParseUint16List(%q) error = %v, wantErr = %v", tc.input, err, tc.wantErr)
+			}
+			if tc.wantErr {
+				return
+			}
+			if len(got) != len(tc.want) {
+				t.Fatalf("ParseUint16List(%q) len = %d, want %d", tc.input, len(got), len(tc.want))
+			}
+			for i := range got {
+				if got[i] != tc.want[i] {
+					t.Fatalf("ParseUint16List(%q)[%d] = %04X, want %04X", tc.input, i, got[i], tc.want[i])
+				}
+			}
+		})
+	}
+}

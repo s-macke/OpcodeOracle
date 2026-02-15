@@ -16,16 +16,19 @@ func newSidCommand() *cli.Command {
 		Name:      "sid",
 		Usage:     "Create project from SID music file",
 		ArgsUsage: "<sid-file>",
+		Flags: []cli.Flag{
+			&cli.StringFlag{Name: "description", Aliases: []string{"d"}, Usage: "project description"},
+		},
 		Action: func(c *cli.Context) error {
 			if c.NArg() != 1 {
 				return cli.Exit("error: requires <sid-file> argument", ExitInvalidArgs)
 			}
-			return cmdNewSid(c.Args().Get(0))
+			return cmdNewSid(c, c.Args().Get(0))
 		},
 	}
 }
 
-func cmdNewSid(binaryFile string) error {
+func cmdNewSid(c *cli.Context, binaryFile string) error {
 	// Read file
 	fileData, err := os.ReadFile(binaryFile)
 	if err != nil {
@@ -85,6 +88,7 @@ func cmdNewSid(binaryFile string) error {
 	}
 
 	s := state.NewState(data, origin, entryPoints, binaryFile)
+	s.Metadata.Description = c.String("description")
 
 	// Run flow analysis
 	fmt.Printf("Analyzing from %d entry point(s)...\n", len(entryPoints))

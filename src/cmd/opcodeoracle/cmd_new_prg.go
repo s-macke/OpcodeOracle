@@ -18,7 +18,8 @@ func newPrgCommand() *cli.Command {
 		Usage:     "Create project from C64 PRG file",
 		ArgsUsage: "<prg-file>",
 		Flags: []cli.Flag{
-			&cli.StringFlag{Name: "entry", Aliases: []string{"e"}, Required: true, Usage: "entry point address"},
+			&cli.StringFlag{Name: "entry", Aliases: []string{"e"}, Required: true, Usage: "entry point address(es), comma-separated"},
+			&cli.StringFlag{Name: "description", Aliases: []string{"d"}, Usage: "project description"},
 		},
 		Action: func(c *cli.Context) error {
 			if c.NArg() != 1 {
@@ -30,7 +31,7 @@ func newPrgCommand() *cli.Command {
 }
 
 func cmdNewPrg(c *cli.Context, binaryFile string) error {
-	entryNum, err := numparse.ParseUint16(c.String("entry"))
+	entryPoints, err := numparse.ParseUint16List(c.String("entry"))
 	if err != nil {
 		return cli.Exit("error: invalid entry value: "+err.Error(), ExitInvalidArgs)
 	}
@@ -49,9 +50,9 @@ func cmdNewPrg(c *cli.Context, binaryFile string) error {
 	// First 2 bytes are little-endian load address
 	origin := uint16(fileData[0]) | uint16(fileData[1])<<8
 	data := fileData[2:]
-	entryPoints := []uint16{uint16(entryNum)}
 
 	s := state.NewState(data, origin, entryPoints, binaryFile)
+	s.Metadata.Description = c.String("description")
 
 	// Run flow analysis
 	fmt.Printf("Analyzing from %d entry point(s)...\n", len(entryPoints))

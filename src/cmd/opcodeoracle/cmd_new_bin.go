@@ -18,9 +18,10 @@ func newBinCommand() *cli.Command {
 		Usage:     "Create project from raw binary",
 		ArgsUsage: "<binary-file>",
 		Flags: []cli.Flag{
-			&cli.StringFlag{Name: "skip", Aliases: []string{"s"}, Required: true, Usage: "bytes to skip at start"},
-			&cli.StringFlag{Name: "entry", Aliases: []string{"e"}, Required: true, Usage: "entry point address"},
-			&cli.StringFlag{Name: "origin", Aliases: []string{"o"}, Required: true, Usage: "load address"},
+			&cli.StringFlag{Name: "skip", Aliases: []string{"s"}, Value: "0", Usage: "bytes to skip at start"},
+			&cli.StringFlag{Name: "entry", Aliases: []string{"e"}, Required: true, Usage: "entry point address(es), comma-separated"},
+			&cli.StringFlag{Name: "origin", Aliases: []string{"o"}, Value: "0", Usage: "load address"},
+			&cli.StringFlag{Name: "description", Aliases: []string{"d"}, Usage: "project description"},
 		},
 		Action: func(c *cli.Context) error {
 			if c.NArg() != 1 {
@@ -37,7 +38,7 @@ func cmdNewBin(c *cli.Context, binaryFile string) error {
 		return cli.Exit("error: invalid skip value: "+err.Error(), ExitInvalidArgs)
 	}
 
-	entryNum, err := numparse.ParseUint16(c.String("entry"))
+	entryPoints, err := numparse.ParseUint16List(c.String("entry"))
 	if err != nil {
 		return cli.Exit("error: invalid entry value: "+err.Error(), ExitInvalidArgs)
 	}
@@ -60,9 +61,9 @@ func cmdNewBin(c *cli.Context, binaryFile string) error {
 
 	data := fileData[skipNum:]
 	origin := uint16(originNum)
-	entryPoints := []uint16{uint16(entryNum)}
 
 	s := state.NewState(data, origin, entryPoints, binaryFile)
+	s.Metadata.Description = c.String("description")
 
 	// Run flow analysis
 	fmt.Printf("Analyzing from %d entry point(s)...\n", len(entryPoints))
