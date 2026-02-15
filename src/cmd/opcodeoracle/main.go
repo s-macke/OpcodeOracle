@@ -18,14 +18,14 @@ const (
 	ExitAnalysisError = 6
 )
 
-// Version information
-const Version = "0.1.0"
+// Version information — set via ldflags at build time.
+var version = "dev"
 
 func main() {
 	app := &cli.App{
 		Name:    "opcodeoracle",
 		Usage:   "MOS6502 Disassembler",
-		Version: Version,
+		Version: version,
 		Commands: []*cli.Command{
 			newCommand(),
 			infoCommand(),
