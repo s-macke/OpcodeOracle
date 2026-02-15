@@ -2,7 +2,8 @@ project_name: opcodeoracle
 
 before:
   hooks:
-    - go mod tidy
+    - cmd: go mod tidy
+      dir: src
 
 builds:
   - id: opcodeoracle
