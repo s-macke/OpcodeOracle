@@ -2,12 +2,12 @@ version: 2
 
 project_name: opcodeoracle
 
-before:
-  hooks:
-    - go mod tidy
-
 builds:
   - id: opcodeoracle
+    hooks:
+      pre:
+        - cmd: go mod tidy
+          dir: src
     dir: src
     main: ./cmd/opcodeoracle
     binary: opcodeoracle
