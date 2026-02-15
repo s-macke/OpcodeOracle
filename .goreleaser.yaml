@@ -4,8 +4,7 @@ project_name: opcodeoracle
 
 before:
   hooks:
-    - cmd: go mod tidy
-      dir: src
+    - go mod tidy
 
 builds:
   - id: opcodeoracle
@@ -25,11 +24,11 @@ builds:
       - arm64
 
 archives:
-  - format: tar.gz
+  - formats: [ 'tar.gz' ]
     name_template: "{{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
     format_overrides:
       - goos: windows
-        format: zip
+        formats: [ 'zip' ]
 
 checksum:
   name_template: checksums.txt

@@ -1,3 +1,5 @@
 .idea
 .claude
 /opcodeoracle
+# Added by goreleaser init:
+dist/
