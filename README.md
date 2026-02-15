@@ -75,7 +75,7 @@ All `new` commands accept an optional `--description` flag:
 
 ### MCP Server
 
-Start the MCP server to connect Claude Desktop or any MCP-compatible client:
+Start the MCP server to connect to any MCP-compatible client:
 
 ```bash
 # Stdio transport (for Claude Desktop)
@@ -85,7 +85,7 @@ Start the MCP server to connect Claude Desktop or any MCP-compatible client:
 ./opcodeoracle mcp --transport http --listen 127.0.0.1:8080 game.opcodeoracle.json
 ```
 
-Claude Desktop configuration (`claude_desktop_config.json`):
+MCP configuration:
 
 ```json
 {
@@ -124,6 +124,48 @@ For quick interactive sessions or fully automated analysis:
 # Automated agent analysis
 ./opcodeoracle agent game.opcodeoracle.json
 ```
+
+## Recommended Workflow
+
+1. **Set up a project folder** with the `opcodeoracle` binary and your target binary side by side:
+
+   ```
+   myproject/
+   ├── opcodeoracle
+   └── game.prg
+   ```
+
+2. **Create the project** to run initial flow analysis:
+
+   ```bash
+   ./opcodeoracle new prg game.prg --entry '$080D' --description "My C64 game"
+   ```
+
+3. **Export the initial disassembly** to see what automatic analysis found:
+   
+   ```bash
+   ./opcodeoracle export game.opcodeoracle.json
+   ```
+
+4. **Start the MCP server** and connect your AI chatbot:
+
+   ```bash
+   ./opcodeoracle mcp game.opcodeoracle.json
+   ```
+
+5. **Begin the conversation** with a prompt like:
+
+   > Use the `list_subroutines_and_data_segments` tool to get an overview of the binary.
+   > Then pick a subroutine, view its disassembly, and start adding symbols and annotations.
+   > After each subroutine, suggest what to look at next.
+
+   The AI will iteratively explore the code, name subroutines and variables, annotate logic, and identify data structures. You can guide it or let it work through the binary systematically.
+
+6. **Export again** at any point to see the updated assembly with all AI-generated names and annotations:
+
+   ```bash
+   ./opcodeoracle export game.opcodeoracle.json
+   ```
 
 ## Sample Output
 
