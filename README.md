@@ -4,7 +4,7 @@ AI-assisted MOS 6502 disassembler for Commodore 64 binaries.
 
 OpcodeOracle combines flow-following disassembly with AI-powered reverse engineering. It automatically classifies code and data regions, traces execution paths from entry points, and generates readable assembly output. An integrated MCP server lets you connect Claude (or any MCP client) to annotate, label, and understand disassembled code interactively.
 
-<video src="assets/disasm_progress_weltendaemmerung.mp4" controls width="100%"></video>
+![Agent disassembling a C64 binary](assets/disasm_progress_weltendaemmerung.gif)
 
 ## Quick Start
 
