@@ -113,3 +113,45 @@ func TestXRefTableDuplicate(t *testing.T) {
 		t.Errorf("To(0x0900) returned %d refs, want 2", len(refs))
 	}
 }
+
+func TestXRefTableReturnsCanonicalOrder(t *testing.T) {
+	table := NewTable()
+
+	// Intentionally shuffled insertion order.
+	table.Add(0x0830, 0x0900, XRefJump)
+	table.Add(0x0810, 0x0900, XRefCall)
+	table.Add(0x0810, 0x0900, XRefBranch)
+	table.Add(0x0810, 0x0950, XRefRead)
+	table.Add(0x0810, 0x0940, XRefRead)
+
+	toRefs := table.To(0x0900)
+	if len(toRefs) != 3 {
+		t.Fatalf("To(0x0900) returned %d refs, want 3", len(toRefs))
+	}
+	if toRefs[0].From != 0x0810 || toRefs[0].Type != XRefBranch {
+		t.Fatalf("To order[0] = {%04X,%04X,%s}, want {0810,0900,branch}", toRefs[0].From, toRefs[0].To, toRefs[0].Type)
+	}
+	if toRefs[1].From != 0x0810 || toRefs[1].Type != XRefCall {
+		t.Fatalf("To order[1] = {%04X,%04X,%s}, want {0810,0900,call}", toRefs[1].From, toRefs[1].To, toRefs[1].Type)
+	}
+	if toRefs[2].From != 0x0830 || toRefs[2].Type != XRefJump {
+		t.Fatalf("To order[2] = {%04X,%04X,%s}, want {0830,0900,jump}", toRefs[2].From, toRefs[2].To, toRefs[2].Type)
+	}
+
+	fromRefs := table.From(0x0810)
+	if len(fromRefs) != 4 {
+		t.Fatalf("From(0x0810) returned %d refs, want 4", len(fromRefs))
+	}
+	if fromRefs[0].Type != XRefBranch || fromRefs[0].To != 0x0900 {
+		t.Fatalf("From order[0] = {%04X,%04X,%s}, want {0810,0900,branch}", fromRefs[0].From, fromRefs[0].To, fromRefs[0].Type)
+	}
+	if fromRefs[1].Type != XRefCall || fromRefs[1].To != 0x0900 {
+		t.Fatalf("From order[1] = {%04X,%04X,%s}, want {0810,0900,call}", fromRefs[1].From, fromRefs[1].To, fromRefs[1].Type)
+	}
+	if fromRefs[2].Type != XRefRead || fromRefs[2].To != 0x0940 {
+		t.Fatalf("From order[2] = {%04X,%04X,%s}, want {0810,0940,read}", fromRefs[2].From, fromRefs[2].To, fromRefs[2].Type)
+	}
+	if fromRefs[3].Type != XRefRead || fromRefs[3].To != 0x0950 {
+		t.Fatalf("From order[3] = {%04X,%04X,%s}, want {0810,0950,read}", fromRefs[3].From, fromRefs[3].To, fromRefs[3].Type)
+	}
+}

@@ -1096,6 +1096,42 @@ func TestDisassembleWithMultipleXRefs(t *testing.T) {
 	}
 }
 
+func TestDisassembleXRefsUseCanonicalOrder(t *testing.T) {
+	// Target instruction at $0800 with three incoming references added in shuffled order.
+	data := []byte{
+		0x60,             // RTS at 0x0800 (xref target)
+		0xEA,             // NOP padding
+		0x4C, 0x00, 0x08, // JMP $0800 at 0x0802
+		0x20, 0x00, 0x08, // JSR $0800 at 0x0805
+		0xD0, 0xF6, // BNE $0800 at 0x0808
+	}
+
+	s := state.NewState(data, 0x0800, nil, "test.prg")
+	s.Regions.Set(0x0800, 0x0809, regions.RegionCode)
+
+	// Add xrefs in non-canonical order.
+	s.XRefs.Add(0x0805, 0x0800, "call")
+	s.XRefs.Add(0x0802, 0x0800, "jump")
+	s.XRefs.Add(0x0808, 0x0800, "branch")
+
+	d := NewDisassembler(s, nil)
+	output, err := d.Disassemble(0x0800, 0x080A)
+	if err != nil {
+		t.Fatalf("Disassemble failed: %v", err)
+	}
+
+	jumpIdx := strings.Index(output, "xref: jump from $0802")
+	callIdx := strings.Index(output, "xref: call from $0805")
+	branchIdx := strings.Index(output, "xref: branch from $0808")
+
+	if jumpIdx == -1 || callIdx == -1 || branchIdx == -1 {
+		t.Fatalf("Missing expected xref lines in output:\n%s", output)
+	}
+	if !(jumpIdx < callIdx && callIdx < branchIdx) {
+		t.Fatalf("Xref order is not canonical (from asc):\n%s", output)
+	}
+}
+
 func TestDisassembleXRefOnSameLine(t *testing.T) {
 	// Verify xref appears on same line as instruction when no annotation
 	data := []byte{

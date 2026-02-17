@@ -6,6 +6,7 @@ import (
 	"strings"
 	"testing"
 
+	"opcodeoracle/internal/analysis"
 	"opcodeoracle/internal/regions"
 	"opcodeoracle/internal/segments"
 	"opcodeoracle/internal/state"
@@ -202,5 +203,79 @@ func TestExport(t *testing.T) {
 	}
 	if !strings.Contains(output, "; End of disassembly") {
 		t.Error("output missing end marker")
+	}
+}
+
+func TestExportDeterministicAcrossRuns(t *testing.T) {
+	buildState := func() *state.State {
+		data := []byte{
+			0x60,             // RTS at 0x0800 (xref target)
+			0xEA,             // NOP padding
+			0x4C, 0x00, 0x08, // JMP $0800 at 0x0802
+			0x20, 0x00, 0x08, // JSR $0800 at 0x0805
+			0xD0, 0xF6, // BNE $0800 at 0x0808
+		}
+		s := state.NewState(data, 0x0800, nil, "test.prg")
+		s.Regions.Set(0x0800, 0x0809, regions.RegionCode)
+
+		if err := s.Symbols.Add(0x0800, symbols.Symbol{Name: "main", Type: symbols.SymbolLabel, Source: symbols.SourceUser}); err != nil {
+			t.Fatalf("add symbol at $0800: %v", err)
+		}
+		if err := s.Symbols.Add(0x0805, symbols.Symbol{Name: "seed_sub", Type: symbols.SymbolSubroutine, Source: symbols.SourceUser}); err != nil {
+			t.Fatalf("add symbol at $0805: %v", err)
+		}
+		if err := s.Symbols.Add(0x0802, symbols.Symbol{Name: "seed_label", Type: symbols.SymbolLabel, Source: symbols.SourceUser}); err != nil {
+			t.Fatalf("add symbol at $0802: %v", err)
+		}
+		if err := s.Symbols.Add(0x0808, symbols.Symbol{Name: "seed_entry", Type: symbols.SymbolEntry, Source: symbols.SourceUser}); err != nil {
+			t.Fatalf("add symbol at $0808: %v", err)
+		}
+
+		return s
+	}
+
+	normalizeHeader := func(s string) string {
+		lines := strings.Split(s, "\n")
+		var kept []string
+		for _, line := range lines {
+			if strings.HasPrefix(line, "; Generated: ") {
+				continue
+			}
+			kept = append(kept, line)
+		}
+		return strings.Join(kept, "\n")
+	}
+
+	exportOnce := func(run int) string {
+		s := buildState()
+		analyzer := analysis.NewAnalyzer(s, analysis.UpdateXRefsOnly)
+		if err := analyzer.Analyze(); err != nil {
+			t.Fatalf("analysis run %d failed: %v", run, err)
+		}
+
+		exp := NewExporter(s, analyzer)
+		outPath := filepath.Join(t.TempDir(), "output.asm")
+		if err := exp.Export(outPath); err != nil {
+			t.Fatalf("export run %d failed: %v", run, err)
+		}
+
+		content, err := os.ReadFile(outPath)
+		if err != nil {
+			t.Fatalf("read output run %d: %v", run, err)
+		}
+		return normalizeHeader(string(content))
+	}
+
+	const runs = 10
+	var baseline string
+	for i := 0; i < runs; i++ {
+		current := exportOnce(i)
+		if i == 0 {
+			baseline = current
+			continue
+		}
+		if current != baseline {
+			t.Fatalf("export output differed on run %d\n--- baseline ---\n%s\n--- current ---\n%s", i, baseline, current)
+		}
 	}
 }

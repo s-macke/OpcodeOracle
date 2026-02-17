@@ -1,5 +1,7 @@
 package xrefs
 
+import "sort"
+
 type XRefType string
 
 const (
@@ -27,6 +29,7 @@ func NewTable() *Table {
 }
 
 // To returns all cross-references pointing to the given address.
+// Results are returned in deterministic order for stable output rendering.
 func (t *Table) To(addr uint16) []XRef {
 	var result []XRef
 	for _, x := range t.xrefs {
@@ -37,10 +40,12 @@ func (t *Table) To(addr uint16) []XRef {
 	if result == nil {
 		return []XRef{}
 	}
+	sortXRefs(result)
 	return result
 }
 
 // From returns all cross-references originating from the given address.
+// Results are returned in deterministic order for stable output rendering.
 func (t *Table) From(addr uint16) []XRef {
 	var result []XRef
 	for _, x := range t.xrefs {
@@ -51,6 +56,7 @@ func (t *Table) From(addr uint16) []XRef {
 	if result == nil {
 		return []XRef{}
 	}
+	sortXRefs(result)
 	return result
 }
 
@@ -77,4 +83,20 @@ func (t *Table) Remove(from, to uint16) {
 		}
 	}
 	t.xrefs = remaining
+}
+
+func sortXRefs(refs []XRef) {
+	if len(refs) < 2 {
+		return
+	}
+
+	sort.Slice(refs, func(i, j int) bool {
+		if refs[i].From != refs[j].From {
+			return refs[i].From < refs[j].From
+		}
+		if refs[i].Type != refs[j].Type {
+			return refs[i].Type < refs[j].Type
+		}
+		return refs[i].To < refs[j].To
+	})
 }

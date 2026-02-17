@@ -3,6 +3,7 @@ package analysis
 
 import (
 	"fmt"
+	"sort"
 
 	"opcodeoracle/internal/asm"
 	"opcodeoracle/internal/regions"
@@ -78,10 +79,8 @@ func (a *Analyzer) Analyze() error {
 
 	// Also seed from existing subroutine and label symbols in the symbol table
 	// This allows user-defined or imported symbols to drive analysis
-	for addr, sym := range a.state.Symbols.All() {
-		if sym.Type == symbols.SymbolSubroutine || sym.Type == symbols.SymbolLabel || sym.Type == symbols.SymbolEntry {
-			a.enqueue(addr)
-		}
+	for _, addr := range a.symbolSeedAddresses() {
+		a.enqueue(addr)
 	}
 
 	// Also seed from existing code regions
@@ -93,6 +92,23 @@ func (a *Analyzer) Analyze() error {
 	}
 
 	return a.run()
+}
+
+// symbolSeedAddresses returns symbol addresses that should seed analysis in deterministic order.
+func (a *Analyzer) symbolSeedAddresses() []uint16 {
+	var addrs []uint16
+
+	for addr, sym := range a.state.Symbols.All() {
+		if sym.Type == symbols.SymbolSubroutine || sym.Type == symbols.SymbolLabel || sym.Type == symbols.SymbolEntry {
+			addrs = append(addrs, addr)
+		}
+	}
+
+	sort.Slice(addrs, func(i, j int) bool {
+		return addrs[i] < addrs[j]
+	})
+
+	return addrs
 }
 
 // AnalyzeFrom performs flow analysis starting from a single address.

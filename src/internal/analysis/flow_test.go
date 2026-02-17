@@ -1,6 +1,7 @@
 package analysis
 
 import (
+	"reflect"
 	"testing"
 
 	"opcodeoracle/internal/asm"
@@ -584,6 +585,32 @@ func TestAnalyzeFromExistingLabels(t *testing.T) {
 	}
 	if !analyzer.visited[0x1001] {
 		t.Error("Code at 0x1001 not discovered")
+	}
+}
+
+func TestSymbolSeedAddressesSortedAndFiltered(t *testing.T) {
+	data := make([]byte, 0x20) // $1000-$101F
+	s := newTestState(data, 0x1000, nil)
+
+	if err := s.Symbols.Add(0x1006, symbols.Symbol{Name: "seed_label", Type: symbols.SymbolLabel, Source: symbols.SourceUser}); err != nil {
+		t.Fatalf("add label symbol: %v", err)
+	}
+	if err := s.Symbols.Add(0x1002, symbols.Symbol{Name: "seed_entry", Type: symbols.SymbolEntry, Source: symbols.SourceUser}); err != nil {
+		t.Fatalf("add entry symbol: %v", err)
+	}
+	if err := s.Symbols.Add(0x1004, symbols.Symbol{Name: "seed_sub", Type: symbols.SymbolSubroutine, Source: symbols.SourceUser}); err != nil {
+		t.Fatalf("add subroutine symbol: %v", err)
+	}
+	if err := s.Symbols.Add(0x1003, symbols.Symbol{Name: "ignored_byte", Type: symbols.SymbolByte, Source: symbols.SourceUser}); err != nil {
+		t.Fatalf("add byte symbol: %v", err)
+	}
+
+	analyzer := NewAnalyzer(s, UpdateAll)
+	got := analyzer.symbolSeedAddresses()
+	want := []uint16{0x1002, 0x1004, 0x1006}
+
+	if !reflect.DeepEqual(got, want) {
+		t.Fatalf("symbolSeedAddresses() = %v, want %v", got, want)
 	}
 }
 
