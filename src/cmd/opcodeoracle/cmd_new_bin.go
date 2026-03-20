@@ -12,6 +12,8 @@ import (
 	"github.com/urfave/cli/v2"
 )
 
+const maxAddressSpaceSize = 1 << 16
+
 func newBinCommand() *cli.Command {
 	return &cli.Command{
 		Name:      "bin",
@@ -61,6 +63,10 @@ func cmdNewBin(c *cli.Context, binaryFile string) error {
 
 	data := fileData[skipNum:]
 	origin := uint16(originNum)
+	maxDataLen := maxAddressSpaceSize - int(origin)
+	if len(data) > maxDataLen {
+		data = data[:maxDataLen]
+	}
 
 	s := state.NewState(data, origin, entryPoints, binaryFile)
 	s.Metadata.Description = c.String("description")

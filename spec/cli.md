@@ -68,6 +68,7 @@ Raw binary files require entry point information:
 - `--skip`: Number of bytes to skip at the beginning (header, etc.); defaults to `0`
 - `--origin`: Address where the binary is loaded in memory; defaults to `0`
 - `--entry`: Address(es) where code execution begins (required, comma-separated)
+- If the remaining file data is larger than the available 16-bit address space from `origin`, it is truncated automatically
 
 #### C64 PRG (`prg`)
 
@@ -84,13 +85,13 @@ SID files contain complete header information:
 
 ### Output
 
-Creates a state file named `<binary-name>.opcodeoracle.json` (replacing the original extension).
+Creates a state file named `<binary-name>.opcodeoracle.json` in the current working directory.
 
 ### Behavior
 
 1. Reads the binary file
 2. Extracts or uses provided origin and entry points
-3. Creates state file `<binary-name>.opcodeoracle.json`
+3. Creates state file `<binary-name>.opcodeoracle.json` in the current working directory
 4. Runs flow-following disassembly from entry point(s)
 5. Populates symbols, regions, and code/data classification (see [state-file.md](state-file.md))
 6. Saves state file

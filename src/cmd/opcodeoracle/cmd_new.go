@@ -21,7 +21,8 @@ func newCommand() *cli.Command {
 
 // outputFilename generates the output filename by replacing the extension with .opcodeoracle.json
 func outputFilename(inputFile string) string {
-	ext := filepath.Ext(inputFile)
-	base := strings.TrimSuffix(inputFile, ext)
+	name := filepath.Base(inputFile)
+	ext := filepath.Ext(name)
+	base := strings.TrimSuffix(name, ext)
 	return base + ".opcodeoracle.json"
 }
