@@ -12,15 +12,16 @@ import (
 )
 
 type State struct {
-	Version     string
-	Metadata    Metadata
-	Binary      binary.Binary
-	EntryPoints []uint16
-	Symbols     *symbols.Table
-	Annotations *annotations.Table
-	Headlines   *headlines.Table
-	Regions     *regions.Table
-	XRefs       *xrefs.Table // Not persisted, computed during disassembly
+	Version            string
+	Metadata           Metadata
+	Binary             binary.Binary
+	EntryPoints        []uint16
+	ExtraCodeAddresses []uint16
+	Symbols            *symbols.Table
+	Annotations        *annotations.Table
+	Headlines          *headlines.Table
+	Regions            *regions.Table
+	XRefs              *xrefs.Table // Not persisted, computed during disassembly
 }
 
 type Metadata struct {

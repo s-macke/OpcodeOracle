@@ -57,6 +57,13 @@ func cmdInfo(c *cli.Context) error {
 		}
 		fmt.Printf("Entry points:  %s\n", strings.Join(entries, ", "))
 	}
+	if len(s.ExtraCodeAddresses) > 0 {
+		addrs := make([]string, len(s.ExtraCodeAddresses))
+		for i, addr := range s.ExtraCodeAddresses {
+			addrs[i] = fmt.Sprintf("$%04X", addr)
+		}
+		fmt.Printf("Extra code:    %s\n", strings.Join(addrs, ", "))
+	}
 
 	// Symbol stats
 	allSymbols := s.Symbols.All()

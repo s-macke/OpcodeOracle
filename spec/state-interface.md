@@ -37,6 +37,7 @@ type State struct {
     Metadata    Metadata
     Binary      Binary
     EntryPoints []uint16
+    ExtraCodeAddresses []uint16
     Symbols     *SymbolTable
     Annotations *AnnotationTable
     Regions     *RegionTable
@@ -52,6 +53,7 @@ type State struct {
 | `Metadata`    | `Metadata`         | Project metadata               |
 | `Binary`      | `Binary`           | Binary data with read methods  |
 | `EntryPoints` | `[]uint16`         | Code entry point addresses     |
+| `ExtraCodeAddresses` | `[]uint16`   | Additional code seeds without entry symbols |
 | `Symbols`     | `*SymbolTable`     | Symbol table (labels, names)   |
 | `Annotations` | `*AnnotationTable` | Comments and notes             |
 | `Regions`     | `*RegionTable`     | Code/data region boundaries    |

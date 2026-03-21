@@ -27,6 +27,9 @@ func TestNewState(t *testing.T) {
 	if len(s.EntryPoints) != 1 || s.EntryPoints[0] != entryPoints[0] {
 		t.Errorf("EntryPoints = %v, want %v", s.EntryPoints, entryPoints)
 	}
+	if len(s.ExtraCodeAddresses) != 0 {
+		t.Errorf("ExtraCodeAddresses = %v, want empty", s.ExtraCodeAddresses)
+	}
 	if s.Symbols == nil {
 		t.Error("Symbols is nil")
 	}

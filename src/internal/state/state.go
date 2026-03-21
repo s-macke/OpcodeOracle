@@ -33,11 +33,12 @@ func NewState(data []byte, origin uint16, entryPoints []uint16, sourceFile strin
 			Data:   data,
 			Origin: origin,
 		},
-		EntryPoints: entryPoints,
-		Symbols:     symbols.NewTable(),
-		Annotations: annotations.NewTable(),
-		Headlines:   headlines.NewTable(),
-		Regions:     regTable,
-		XRefs:       xrefs.NewTable(),
+		EntryPoints:        entryPoints,
+		ExtraCodeAddresses: []uint16{},
+		Symbols:            symbols.NewTable(),
+		Annotations:        annotations.NewTable(),
+		Headlines:          headlines.NewTable(),
+		Regions:            regTable,
+		XRefs:              xrefs.NewTable(),
 	}
 }

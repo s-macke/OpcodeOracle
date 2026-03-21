@@ -17,7 +17,7 @@ opcodeoracle <command> [options] [arguments]
 | `new`    | Create new project from binary                 |
 | `info`   | Display state file information                 |
 | `export` | Export state to assembly files                 |
-| `edit`   | Edit state (annotations, symbols, reinterpret) |
+| `edit`   | Edit state (annotations, symbols, reinterpret, reanalyze) |
 | `mcp`    | Start MCP server (stdio or streamable HTTP)   |
 
 ---
@@ -216,6 +216,39 @@ Starts an MCP server exposing OpcodeOracle reverse-engineering tools.
 
 ```
 opcodeoracle mcp [options] <state-file>
+```
+
+---
+
+## `edit reanalyze` - Rebuild Auto Analysis
+
+Rebuilds auto-generated regions, symbols, and cross-references from the current code seed lists stored in the state file.
+
+### Usage
+
+```
+opcodeoracle edit reanalyze <state-file>
+```
+
+### Behavior
+
+1. Loads the state file
+2. Clears all `auto` code/data analysis artifacts back to a clean auto-data baseline
+3. Preserves `user` and `assistant` regions exactly as stored
+4. Removes auto-generated symbols and xrefs
+5. Re-runs flow analysis using only `entryPoints` and `extraCodeAddresses` as seeds
+6. Saves the updated state file
+
+### Notes
+
+- Preserved non-auto `code` regions remain in the region table but do not seed traversal during this command.
+- Preserved non-auto `data` regions remain hard locks and still block code discovery.
+- Only `entryPoints` generate `ENTRY_XXXX` symbols; `extraCodeAddresses` do not.
+
+### Examples
+
+```bash
+opcodeoracle edit reanalyze game.opcodeoracle.json
 ```
 
 ### Parameters

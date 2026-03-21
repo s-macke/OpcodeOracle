@@ -16,6 +16,7 @@ State files are JSON documents with the following structure:
   "metadata": { ... },
   "binary": { ... },
   "entryPoints": [ ... ],
+  "extraCodeAddresses": [ ... ],
   "symbols": { ... },
   "annotations": { ... },
   "regions": [ ... ]
@@ -32,6 +33,7 @@ State files are JSON documents with the following structure:
 | `metadata`    | object | Yes       | Project metadata                        |
 | `binary`      | object | Yes       | Binary data and load parameters         |
 | `entryPoints` | array  | Yes       | List of entry point addresses           |
+| `extraCodeAddresses` | array | No   | Additional code seed addresses without entry symbols |
 | `symbols`     | object | No        | User-defined and auto-generated symbols |
 | `annotations` | object | No        | Comments and notes                      |
 | `regions`     | array  | No        | Memory region classifications + source  |
@@ -66,6 +68,15 @@ Array of hex address strings representing known entry points:
 
 ```json
 "entryPoints": ["0x0801", "0x1000"]
+```
+
+### Extra Code Addresses Array
+
+Array of hex address strings representing additional code seed addresses.
+These are used to start flow analysis like entry points, but they do not create `entry` symbols or automatic names at those addresses.
+
+```json
+"extraCodeAddresses": ["0x0900", "0xA000"]
 ```
 
 ### Symbols Object

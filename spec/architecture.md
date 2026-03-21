@@ -87,6 +87,7 @@ type State struct {
     Metadata    Metadata
     Binary      Binary
     EntryPoints []uint16
+    ExtraCodeAddresses []uint16
     Symbols     map[uint16][]Symbol
     Annotations map[uint16][]Annotation
     Regions     []Region
@@ -99,6 +100,7 @@ type State struct {
 | `Metadata`    | Metadata                   | Project metadata                               |
 | `Binary`      | Binary                     | Binary data and load parameters                |
 | `EntryPoints` | []uint16                   | Entry point addresses                          |
+| `ExtraCodeAddresses` | []uint16            | Additional code seed addresses without entry symbols |
 | `Symbols`     | map[uint16][]Symbol        | See [symbol-table.md](symbol-table.md)         |
 | `Annotations` | map[uint16][]Annotation    | See [annotation-table.md](annotation-table.md) |
 | `Regions`     | []Region                   | See [regions-table.md](regions-table.md)       |
@@ -113,4 +115,3 @@ type Metadata struct {
     Description string
 }
 ```
-

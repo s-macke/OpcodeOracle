@@ -404,6 +404,34 @@ func TestAnalyzeMultipleEntryPoints(t *testing.T) {
 	}
 }
 
+func TestAnalyzeFromExtraCodeAddressWithoutEntrySymbol(t *testing.T) {
+	// 1000: RTS (entry point)
+	// 1001: JSR $1004 (extra code address)
+	// 1004: RTS
+	data := []byte{0x60, 0x20, 0x04, 0x10, 0x60}
+
+	s := newTestState(data, 0x1000, []uint16{0x1000})
+	s.ExtraCodeAddresses = []uint16{0x1001}
+	analyzer := NewAnalyzer(s, UpdateAll)
+
+	if err := analyzer.Analyze(); err != nil {
+		t.Fatalf("Analyze failed: %v", err)
+	}
+
+	if !analyzer.visited[0x1001] {
+		t.Fatal("extra code address at 0x1001 not discovered")
+	}
+	if !analyzer.visited[0x1004] {
+		t.Fatal("subroutine reachable from extra code address not discovered")
+	}
+	if sym, ok := s.Symbols.At(0x1001); ok && sym.Type == symbols.SymbolEntry {
+		t.Fatalf("unexpected entry symbol at extra code address: %+v", sym)
+	}
+	if sym, ok := s.Symbols.At(0x1004); !ok || sym.Type != symbols.SymbolSubroutine {
+		t.Fatalf("expected subroutine symbol at 0x1004, got %+v", sym)
+	}
+}
+
 func TestAnalyzeBackwardBranch(t *testing.T) {
 	// Loop: INX, BNE loop
 	// 1000: E8       INX

@@ -17,15 +17,16 @@ import (
 )
 
 type jsonState struct {
-	Version     string                             `json:"version"`
-	Metadata    jsonMetadata                       `json:"metadata"`
-	Binary      jsonBinary                         `json:"binary"`
-	EntryPoints []string                           `json:"entryPoints"`
-	ForcedData  []jsonAddressRange                 `json:"forcedData,omitempty"` // legacy; load-only migration
-	Symbols     map[string]jsonSymbolValue         `json:"symbols,omitempty"`
-	Annotations map[string]*jsonAddressAnnotations `json:"annotations,omitempty"`
-	Headlines   map[string]*jsonAddressHeadlines   `json:"headlines,omitempty"`
-	Regions     []jsonRegion                       `json:"regions,omitempty"`
+	Version            string                             `json:"version"`
+	Metadata           jsonMetadata                       `json:"metadata"`
+	Binary             jsonBinary                         `json:"binary"`
+	EntryPoints        []string                           `json:"entryPoints"`
+	ExtraCodeAddresses []string                           `json:"extraCodeAddresses,omitempty"`
+	ForcedData         []jsonAddressRange                 `json:"forcedData,omitempty"` // legacy; load-only migration
+	Symbols            map[string]jsonSymbolValue         `json:"symbols,omitempty"`
+	Annotations        map[string]*jsonAddressAnnotations `json:"annotations,omitempty"`
+	Headlines          map[string]*jsonAddressHeadlines   `json:"headlines,omitempty"`
+	Regions            []jsonRegion                       `json:"regions,omitempty"`
 }
 
 // jsonSymbolValue can unmarshal either a single jsonSymbol or an array of them (for backward compatibility)
@@ -130,11 +131,15 @@ func stateToJSON(s *state.State) *jsonState {
 			Data:   s.Binary.Data,
 			Origin: formatHex(s.Binary.Origin),
 		},
-		EntryPoints: make([]string, len(s.EntryPoints)),
+		EntryPoints:        make([]string, len(s.EntryPoints)),
+		ExtraCodeAddresses: make([]string, len(s.ExtraCodeAddresses)),
 	}
 
 	for i, ep := range s.EntryPoints {
 		js.EntryPoints[i] = formatHex(ep)
+	}
+	for i, addr := range s.ExtraCodeAddresses {
+		js.ExtraCodeAddresses[i] = formatHex(addr)
 	}
 	// Convert symbols
 	if allSyms := s.Symbols.All(); len(allSyms) > 0 {
@@ -230,12 +235,13 @@ func jsonToState(js *jsonState) (*state.State, error) {
 			Data:   js.Binary.Data,
 			Origin: origin,
 		},
-		EntryPoints: make([]uint16, len(js.EntryPoints)),
-		Symbols:     symbols.NewTable(),
-		Annotations: annotations.NewTable(),
-		Headlines:   headlines.NewTable(),
-		Regions:     regions.NewTable(),
-		XRefs:       xrefs.NewTable(),
+		EntryPoints:        make([]uint16, len(js.EntryPoints)),
+		ExtraCodeAddresses: make([]uint16, len(js.ExtraCodeAddresses)),
+		Symbols:            symbols.NewTable(),
+		Annotations:        annotations.NewTable(),
+		Headlines:          headlines.NewTable(),
+		Regions:            regions.NewTable(),
+		XRefs:              xrefs.NewTable(),
 	}
 
 	for i, epStr := range js.EntryPoints {
@@ -244,6 +250,13 @@ func jsonToState(js *jsonState) (*state.State, error) {
 			return nil, fmt.Errorf("invalid entry point: %w", err)
 		}
 		s.EntryPoints[i] = ep
+	}
+	for i, addrStr := range js.ExtraCodeAddresses {
+		addr, err := parseHex(addrStr)
+		if err != nil {
+			return nil, fmt.Errorf("invalid extra code address: %w", err)
+		}
+		s.ExtraCodeAddresses[i] = addr
 	}
 	// Convert symbols (handles both old array format and new single-symbol format)
 	for addrStr, symVal := range js.Symbols {

@@ -47,6 +47,13 @@ type Analyzer struct {
 	queue        []uint16
 }
 
+type seedMode uint8
+
+const (
+	seedEntryPointsOnly seedMode = iota
+	seedAllKnownCode
+)
+
 // NewAnalyzer creates a new flow analyzer for the given state.
 // The flags parameter controls which state components are updated during analysis.
 func NewAnalyzer(s *state.State, flags UpdateFlags) *Analyzer {
@@ -63,35 +70,66 @@ func NewAnalyzer(s *state.State, flags UpdateFlags) *Analyzer {
 // It populates the RegionTable, SymbolTable, and XRefTable.
 func (a *Analyzer) Analyze() error {
 	a.ensureXRefs()
+	a.seed(seedAllKnownCode)
+	return a.run()
+}
 
-	// Seed the queue with all entry points
+func (a *Analyzer) AnalyzeFromEntryPoints() error {
+	a.ensureXRefs()
+	a.seed(seedEntryPointsOnly)
+	return a.run()
+}
+
+func (a *Analyzer) seed(mode seedMode) {
+	// Seed the queue with all entry points.
 	for _, ep := range a.state.EntryPoints {
-		a.enqueue(ep)
-		// Add entry point symbol if not already present
-		if a.flags&UpdateSymbols != 0 {
-			a.state.Symbols.Add(ep, symbols.Symbol{
-				Name:   fmt.Sprintf("ENTRY_%04X", ep),
-				Type:   symbols.SymbolEntry,
-				Source: symbols.SourceAuto,
-			})
+		a.seedEntryPoint(ep)
+	}
+	for _, addr := range a.state.ExtraCodeAddresses {
+		if contains16(a.state.EntryPoints, addr) {
+			continue
 		}
+		a.enqueue(addr)
 	}
 
-	// Also seed from existing subroutine and label symbols in the symbol table
-	// This allows user-defined or imported symbols to drive analysis
+	if mode != seedAllKnownCode {
+		return
+	}
+
+	// Also seed from existing subroutine and label symbols in the symbol table.
+	// This allows user-defined or imported symbols to drive analysis.
 	for _, addr := range a.symbolSeedAddresses() {
 		a.enqueue(addr)
 	}
 
-	// Also seed from existing code regions
-	// This ensures previously-identified code is re-analyzed (e.g., for xref rebuilding)
+	// Also seed from existing code regions.
+	// This ensures previously-identified code is re-analyzed (e.g., for xref rebuilding).
 	for _, region := range a.state.Regions.Regions() {
 		if region.Type == regions.RegionCode {
 			a.enqueue(region.Start)
 		}
 	}
+}
 
-	return a.run()
+func (a *Analyzer) seedEntryPoint(ep uint16) {
+	a.enqueue(ep)
+	// Add entry point symbol if not already present.
+	if a.flags&UpdateSymbols != 0 {
+		a.state.Symbols.Add(ep, symbols.Symbol{
+			Name:   fmt.Sprintf("ENTRY_%04X", ep),
+			Type:   symbols.SymbolEntry,
+			Source: symbols.SourceAuto,
+		})
+	}
+}
+
+func contains16(addrs []uint16, addr uint16) bool {
+	for _, candidate := range addrs {
+		if candidate == addr {
+			return true
+		}
+	}
+	return false
 }
 
 // symbolSeedAddresses returns symbol addresses that should seed analysis in deterministic order.

@@ -44,9 +44,15 @@ func NewAnalyzer(s *state.State) *Analyzer
 // Analyze performs flow analysis starting from all entry points and known subroutines.
 // Seeds the work queue from:
 // - state.EntryPoints
+// - state.ExtraCodeAddresses
 // - Existing symbols with type: SymbolSubroutine, SymbolLabel, SymbolEntry
 // - Existing code regions (region start addresses)
 func (a *Analyzer) Analyze() error
+
+// AnalyzeFromEntryPoints performs flow analysis using only state.EntryPoints and
+// state.ExtraCodeAddresses as seeds. Only entryPoints regenerate entry symbols.
+// Existing symbols/code regions do not seed traversal.
+func (a *Analyzer) AnalyzeFromEntryPoints() error
 
 // AnalyzeFrom performs flow analysis starting from a single address.
 // Does not use entry points or existing symbols - only the given address.
@@ -58,7 +64,7 @@ func (a *Analyzer) AnalyzeFrom(addr uint16) error
 
 ```
 1. Initialize work queue with seed addresses:
-   - For Analyze(): entry points + existing subroutine/label symbols
+   - For Analyze(): entry points + extra code addresses + existing subroutine/label symbols
    - For AnalyzeFrom(addr): only the given address
 2. While work queue is not empty:
    a. Pop address from queue
@@ -130,7 +136,11 @@ Auto-generated symbols are created for control flow targets:
 
 All auto-generated symbols have `Source: auto`. User-defined symbols override auto-generated names in output.
 
+`state.ExtraCodeAddresses` seed traversal but do not create `entry` symbols at those addresses.
+
 Existing symbols in the table (from user input, imports, or previous analysis) with types `subroutine`, `label`, or `entry` are used as additional seed points for `Analyze()`.
+
+For strict rebuild operations, `AnalyzeFromEntryPoints()` ignores existing symbols and existing code regions as seeds and uses only `state.EntryPoints` plus `state.ExtraCodeAddresses`.
 
 See [symbol-table.md](symbol-table.md) for SymbolTable interface.
 
@@ -153,6 +163,7 @@ See [xref-table.md](xref-table.md) for XRefTable interface.
 - Initial entry points are provided by user or derived from binary format (stored in `state.EntryPoints`)
 - Each entry point seeds the work queue for `Analyze()`
 - Entry point symbols (`ENTRY_XXXX`) are auto-generated for each entry point
+- `state.ExtraCodeAddresses` also seed the work queue, but do not generate entry symbols
 
 Note: JSR targets are NOT added to `state.EntryPoints` - they are followed during analysis and receive `SUB_XXXX` symbols instead.
 

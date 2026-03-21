@@ -19,6 +19,7 @@ func TestSaveLoad(t *testing.T) {
 	// Create state with data
 	original := state.NewState([]byte{0xA9, 0x00, 0x4C, 0x00, 0x08}, 0x0801, []uint16{0x0801, 0x1000}, "test.prg")
 	original.Metadata.Description = "Test description"
+	original.ExtraCodeAddresses = []uint16{0x0900, 0x0A00}
 
 	original.Symbols.Add(0x0801, symbols.Symbol{
 		Name:   "start",
@@ -66,6 +67,9 @@ func TestSaveLoad(t *testing.T) {
 	}
 	if len(loaded.EntryPoints) != len(original.EntryPoints) {
 		t.Errorf("EntryPoints length = %d, want %d", len(loaded.EntryPoints), len(original.EntryPoints))
+	}
+	if len(loaded.ExtraCodeAddresses) != len(original.ExtraCodeAddresses) {
+		t.Errorf("ExtraCodeAddresses length = %d, want %d", len(loaded.ExtraCodeAddresses), len(original.ExtraCodeAddresses))
 	}
 
 	// Check symbols
@@ -151,6 +155,9 @@ func TestLoadMinimal(t *testing.T) {
 	if s.Binary.Origin != 0x0801 {
 		t.Errorf("Binary.Origin = %04X, want 0801", s.Binary.Origin)
 	}
+	if len(s.ExtraCodeAddresses) != 0 {
+		t.Errorf("ExtraCodeAddresses = %v, want empty", s.ExtraCodeAddresses)
+	}
 
 	// Should default to full data region
 	if err := s.Regions.Validate(); err != nil {
@@ -220,6 +227,9 @@ func TestLoadNewFormat(t *testing.T) {
 	}
 	if len(s.EntryPoints) != 2 {
 		t.Errorf("EntryPoints length = %d, want 2", len(s.EntryPoints))
+	}
+	if len(s.ExtraCodeAddresses) != 0 {
+		t.Errorf("ExtraCodeAddresses = %v, want empty", s.ExtraCodeAddresses)
 	}
 
 	// Check symbols
@@ -507,6 +517,37 @@ func TestSaveNewFormatStructure(t *testing.T) {
 	// Verify annotations don't have type field
 	if contains(content, `"type": "inline"`) || contains(content, `"type": "headline"`) {
 		t.Error("New format should not have type field in annotations")
+	}
+}
+
+func TestLoadWithExtraCodeAddresses(t *testing.T) {
+	tmpDir := t.TempDir()
+	path := filepath.Join(tmpDir, "extra_code.orc")
+
+	content := `{
+  "version": "1.1",
+  "metadata": {
+    "created": "2025-01-22T10:30:00Z",
+    "modified": "2025-01-22T10:30:00Z"
+  },
+  "binary": {
+    "data": [234, 96, 96],
+    "origin": "0x0800"
+  },
+  "entryPoints": ["0x0800"],
+  "extraCodeAddresses": ["0x0802"]
+}`
+	if err := os.WriteFile(path, []byte(content), 0644); err != nil {
+		t.Fatalf("WriteFile() error = %v", err)
+	}
+
+	s, err := Load(path)
+	if err != nil {
+		t.Fatalf("Load() error = %v", err)
+	}
+
+	if got, want := s.ExtraCodeAddresses, []uint16{0x0802}; len(got) != len(want) || got[0] != want[0] {
+		t.Fatalf("ExtraCodeAddresses = %v, want %v", got, want)
 	}
 }
 
