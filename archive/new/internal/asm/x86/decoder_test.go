@@ -333,6 +333,50 @@ func TestDecodeUnsupportedOpcodeReturnsError(t *testing.T) {
 	}
 }
 
+func TestDecodeUnsupportedOpcode82ReturnsError(t *testing.T) {
+	dec := NewDecoder()
+	_, err := dec.Decode([]byte{0x82}, NewFarAddress(0x1000, 0x0000))
+	if err == nil {
+		t.Fatal("expected error")
+	}
+	if !strings.Contains(err.Error(), "unsupported opcode sequence starting with 82") {
+		t.Fatalf("error = %v", err)
+	}
+}
+
+func TestDecodeUnsupportedOpcodeC8ReturnsError(t *testing.T) {
+	dec := NewDecoder()
+	_, err := dec.Decode([]byte{0xc8}, NewFarAddress(0x1000, 0x0000))
+	if err == nil {
+		t.Fatal("expected error")
+	}
+	if !strings.Contains(err.Error(), "unsupported opcode sequence starting with c8") {
+		t.Fatalf("error = %v", err)
+	}
+}
+
+func TestDecodeUnsupportedOpcodeC9ReturnsError(t *testing.T) {
+	dec := NewDecoder()
+	_, err := dec.Decode([]byte{0xc9}, NewFarAddress(0x1000, 0x0000))
+	if err == nil {
+		t.Fatal("expected error")
+	}
+	if !strings.Contains(err.Error(), "unsupported opcode sequence starting with c9") {
+		t.Fatalf("error = %v", err)
+	}
+}
+
+func TestDecodeUnsupportedOpcodeD6ReturnsError(t *testing.T) {
+	dec := NewDecoder()
+	_, err := dec.Decode([]byte{0xd6}, NewFarAddress(0x1000, 0x0000))
+	if err == nil {
+		t.Fatal("expected error")
+	}
+	if !strings.Contains(err.Error(), "unsupported opcode sequence starting with d6") {
+		t.Fatalf("error = %v", err)
+	}
+}
+
 func TestDecodeUnsupportedOp32PrefixReturnsError(t *testing.T) {
 	dec := NewDecoder()
 	_, err := dec.Decode([]byte{0x66, 0xa5}, NewFarAddress(0x1000, 0x0000))
@@ -340,6 +384,83 @@ func TestDecodeUnsupportedOp32PrefixReturnsError(t *testing.T) {
 		t.Fatal("expected error")
 	}
 	if !strings.Contains(err.Error(), "unsupported operand-size override prefix 66") {
+		t.Fatalf("error = %v", err)
+	}
+}
+
+func TestDecodeDanglingPrefixReturnsError(t *testing.T) {
+	dec := NewDecoder()
+	_, err := dec.Decode([]byte{0xf3}, NewFarAddress(0x1000, 0x0000))
+	if err == nil {
+		t.Fatal("expected error")
+	}
+	if !strings.Contains(err.Error(), "dangling prefix f3") {
+		t.Fatalf("error = %v", err)
+	}
+}
+
+func TestDecodeIllegalF6GroupReturnsError(t *testing.T) {
+	dec := NewDecoder()
+	_, err := dec.Decode([]byte{0xf6, 0xc8}, NewFarAddress(0x1000, 0x0000))
+	if err == nil {
+		t.Fatal("expected error")
+	}
+	if !strings.Contains(err.Error(), "illegal grouped opcode f6 /1") {
+		t.Fatalf("error = %v", err)
+	}
+}
+
+func TestDecodeIllegalFEGroupReturnsError(t *testing.T) {
+	dec := NewDecoder()
+	_, err := dec.Decode([]byte{0xfe, 0xd8}, NewFarAddress(0x1000, 0x0000))
+	if err == nil {
+		t.Fatal("expected error")
+	}
+	if !strings.Contains(err.Error(), "illegal grouped opcode fe /3") {
+		t.Fatalf("error = %v", err)
+	}
+}
+
+func TestDecodeIllegalFFGroupReturnsError(t *testing.T) {
+	dec := NewDecoder()
+	_, err := dec.Decode([]byte{0xff, 0xf8}, NewFarAddress(0x1000, 0x0000))
+	if err == nil {
+		t.Fatal("expected error")
+	}
+	if !strings.Contains(err.Error(), "illegal grouped opcode ff /7") {
+		t.Fatalf("error = %v", err)
+	}
+}
+
+func TestDecodeInvalidLockPrefixReturnsError(t *testing.T) {
+	dec := NewDecoder()
+	_, err := dec.Decode([]byte{0xf0, 0x90}, NewFarAddress(0x1000, 0x0000))
+	if err == nil {
+		t.Fatal("expected error")
+	}
+	if !strings.Contains(err.Error(), "invalid lock prefix on nop") {
+		t.Fatalf("error = %v", err)
+	}
+}
+
+func TestDecodeInvalidRepPrefixReturnsError(t *testing.T) {
+	dec := NewDecoder()
+	_, err := dec.Decode([]byte{0xf3, 0x90}, NewFarAddress(0x1000, 0x0000))
+	if err == nil {
+		t.Fatal("expected error")
+	}
+	if !strings.Contains(err.Error(), "invalid repz prefix on nop") {
+		t.Fatalf("error = %v", err)
+	}
+}
+
+func TestDecodeInvalidSegmentOverrideOnRegisterInstructionReturnsError(t *testing.T) {
+	dec := NewDecoder()
+	_, err := dec.Decode([]byte{0x64, 0x90}, NewFarAddress(0x1000, 0x0000))
+	if err == nil {
+		t.Fatal("expected error")
+	}
+	if !strings.Contains(err.Error(), "invalid segment override prefix fs on nop") {
 		t.Fatalf("error = %v", err)
 	}
 }

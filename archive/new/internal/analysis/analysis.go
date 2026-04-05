@@ -1,8 +1,6 @@
 package analysis
 
 import (
-	"fmt"
-
 	"opcodeoracle/internal/asm/x86"
 	binfile "opcodeoracle/internal/binary"
 )
@@ -62,20 +60,6 @@ func (a *Analyzer) Analyze(bin binfile.Binary) (Result, error) {
 			result.DecodeStops = append(result.DecodeStops, DecodeStop{
 				Address: addr,
 				Err:     err,
-			})
-			continue
-		}
-		if inst.Mnemonic == "db" {
-			result.DecodeStops = append(result.DecodeStops, DecodeStop{
-				Address: addr,
-				Err:     fmt.Errorf("fallback db decode: %s", inst.Text),
-			})
-			continue
-		}
-		if hasPrefix(inst, x86.PrefixOp32) {
-			result.DecodeStops = append(result.DecodeStops, DecodeStop{
-				Address: addr,
-				Err:     fmt.Errorf("unsupported operand-size override prefix 66: %s", inst.Text),
 			})
 			continue
 		}
@@ -173,13 +157,4 @@ func directTarget(inst x86.Instruction) (x86.FarAddress, bool) {
 		return x86.NewFarAddress(inst.Address.Segment, *inst.Target.Near), true
 	}
 	return x86.FarAddress{}, false
-}
-
-func hasPrefix(inst x86.Instruction, prefix x86.Prefix) bool {
-	for _, p := range inst.Prefixes {
-		if p == prefix {
-			return true
-		}
-	}
-	return false
 }

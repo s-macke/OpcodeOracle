@@ -71,8 +71,7 @@ func (d *Decoder) Decode(memory []byte, address FarAddress) (Instruction, error)
 		}
 
 		if int(s.pos) >= len(s.data) {
-			s.finalize()
-			return s.inst, nil
+			return Instruction{}, fmt.Errorf("x86: dangling prefix %02x", opcode)
 		}
 	}
 
@@ -80,9 +79,11 @@ func (d *Decoder) Decode(memory []byte, address FarAddress) (Instruction, error)
 		if err := entry.decode(s); err != nil {
 			return Instruction{}, err
 		}
-	}
-	if s.inst.Mnemonic == "db" {
+	} else if entry.mnemonic == "" {
 		return Instruction{}, fmt.Errorf("x86: unsupported opcode sequence starting with %02x", s.inst.Opcode)
+	}
+	if err := validatePrefixes(s.inst); err != nil {
+		return Instruction{}, err
 	}
 
 	s.classify()
@@ -435,11 +436,6 @@ func decodePushPopSeg(s *decodeState) error {
 		return fmt.Errorf("x86: invalid segment opcode %02x", s.inst.Opcode)
 	}
 	s.withOperands(regOperand(reg, Width16))
-	return nil
-}
-
-func decodeDataByte(s *decodeState) error {
-	s.withOperands(immOperand(uint16(s.inst.Opcode), Width8))
 	return nil
 }
 
@@ -907,12 +903,70 @@ func decodeGroupedUnary(s *decodeState, width OperandWidth, ptr PointerQualifier
 		return err
 	}
 	s.inst.Mnemonic = table[(modrm&0x38)>>3]
+	if s.inst.Mnemonic == "illegal" {
+		return fmt.Errorf("x86: illegal grouped opcode %02x /%d", s.inst.Opcode, (modrm&0x38)>>3)
+	}
 	op, err := s.decodeRM(modrm, width, ptr)
 	if err != nil {
 		return err
 	}
 	s.withOperands(op)
 	return nil
+}
+
+func validatePrefixes(inst Instruction) error {
+	if len(inst.Prefixes) == 0 {
+		return nil
+	}
+
+	hasMemory := false
+	for _, op := range inst.Operands {
+		if op.Kind == OperandMemory {
+			hasMemory = true
+			break
+		}
+	}
+
+	for _, p := range inst.Prefixes {
+		switch p {
+		case PrefixES, PrefixCS, PrefixSS, PrefixDS, PrefixFS, PrefixGS:
+			if !hasMemory {
+				return fmt.Errorf("x86: invalid segment override prefix %s on %s", p, inst.Mnemonic)
+			}
+		case PrefixLock:
+			if !isLockableInstruction(inst) {
+				return fmt.Errorf("x86: invalid lock prefix on %s", inst.Mnemonic)
+			}
+		case PrefixRepZ, PrefixRepNZ:
+			if !isRepeatableInstruction(inst) {
+				return fmt.Errorf("x86: invalid %s prefix on %s", p, inst.Mnemonic)
+			}
+		}
+	}
+
+	return nil
+}
+
+func isLockableInstruction(inst Instruction) bool {
+	if len(inst.Operands) == 0 || inst.Operands[0].Kind != OperandMemory {
+		return false
+	}
+
+	switch inst.Mnemonic {
+	case "add", "adc", "and", "btc", "btr", "bts", "cmpxchg", "cmpxchg8b", "dec", "inc", "neg", "not", "or", "sbb", "sub", "xor", "xchg":
+		return true
+	default:
+		return false
+	}
+}
+
+func isRepeatableInstruction(inst Instruction) bool {
+	switch inst.Mnemonic {
+	case "movsb", "movsw", "cmpsb", "cmpsw", "stosb", "stosw", "lodsb", "lodsw", "scasb", "scasw", "outsb", "outsw":
+		return true
+	default:
+		return false
+	}
 }
 
 func decodeFF(s *decodeState) error {
@@ -941,9 +995,7 @@ func decodeBiosCall(s *decodeState) error {
 		return fmt.Errorf("x86: bioscall prefix missing payload: %w", err)
 	}
 	if next != 0xf1 {
-		s.inst.Mnemonic = "db"
-		s.withOperands(immOperand(0xf1, Width8))
-		return nil
+		return fmt.Errorf("x86: unsupported opcode sequence starting with %02x", s.inst.Opcode)
 	}
 
 	_, _ = s.readByte()
@@ -1094,15 +1146,9 @@ var opcodeTable = func() [256]opcodeEntry {
 	for op := byte(0x58); op <= 0x5f; op++ {
 		set(op, "pop", decodeWordReg, 0)
 	}
-	for op := byte(0x60); op <= 0x65; op++ {
-		set(op, "db", decodeDataByte, 0)
-	}
 	set(0x64, "fs", nil, flagPrefix)
 	set(0x65, "gs", nil, flagPrefix)
 	set(0x66, "32", nil, flagPrefix)
-	for op := byte(0x67); op <= 0x6f; op++ {
-		set(op, "db", decodeDataByte, 0)
-	}
 	set(0x68, "push", decodeD16, 0)
 	set(0x6a, "push", decodeD8, 0)
 	set(0x6e, "outs", decodeString("outs"), 0)
@@ -1112,7 +1158,6 @@ var opcodeTable = func() [256]opcodeEntry {
 	}
 	set(0x80, "", decodeBD8Group, 0)
 	set(0x81, "", decodeWD16Group, 0)
-	set(0x82, "db", decodeDataByte, 0)
 	set(0x83, "", decodeWD8Group, 0)
 	set(0x84, "test", decodeBR8, 0)
 	set(0x85, "test", decodeWR16, 0)
@@ -1165,8 +1210,6 @@ var opcodeTable = func() [256]opcodeEntry {
 	set(0xc5, "lds", decodeR16W, 0)
 	set(0xc6, "mov", decodeMovBD8, 0)
 	set(0xc7, "mov", decodeMovWD16, 0)
-	set(0xc8, "db", decodeDataByte, 0)
-	set(0xc9, "db", decodeDataByte, 0)
 	set(0xca, "retf", decodeD16, 0)
 	set(0xcb, "retf", nil, 0)
 	set(0xcc, "int", decodeInt3, 0)
@@ -1179,7 +1222,6 @@ var opcodeTable = func() [256]opcodeEntry {
 	set(0xd3, "", decodeBitCL(Width16, PtrWord, tableDX), 0)
 	set(0xd4, "aam", decodeAdjust, 0)
 	set(0xd5, "aad", decodeAdjust, 0)
-	set(0xd6, "db", decodeDataByte, 0)
 	set(0xd7, "xlat", nil, 0)
 	for op := byte(0xd8); op <= 0xdf; op++ {
 		set(op, "esc", decodeEscape, 0)
