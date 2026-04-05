@@ -9,6 +9,8 @@ const (
 	PrefixCS    Prefix = "cs"
 	PrefixSS    Prefix = "ss"
 	PrefixDS    Prefix = "ds"
+	PrefixFS    Prefix = "fs"
+	PrefixGS    Prefix = "gs"
 	PrefixLock  Prefix = "lock"
 	PrefixRepZ  Prefix = "repz"
 	PrefixRepNZ Prefix = "repnz"
@@ -79,6 +81,8 @@ const (
 	RegCS Register = "cs"
 	RegSS Register = "ss"
 	RegDS Register = "ds"
+	RegFS Register = "fs"
+	RegGS Register = "gs"
 )
 
 type BaseAddressExpr string

@@ -61,6 +61,9 @@ func (d *Decoder) Decode(memory []byte, address FarAddress) (Instruction, error)
 
 		pfx := prefixFromOpcode(opcode)
 		if pfx != "" {
+			if pfx == PrefixOp32 {
+				return Instruction{}, fmt.Errorf("x86: unsupported operand-size override prefix 66")
+			}
 			s.inst.Prefixes = append(s.inst.Prefixes, pfx)
 			if reg := prefixSegmentRegister(pfx); reg != nil {
 				s.segOverride = reg
@@ -77,6 +80,9 @@ func (d *Decoder) Decode(memory []byte, address FarAddress) (Instruction, error)
 		if err := entry.decode(s); err != nil {
 			return Instruction{}, err
 		}
+	}
+	if s.inst.Mnemonic == "db" {
+		return Instruction{}, fmt.Errorf("x86: unsupported opcode sequence starting with %02x", s.inst.Opcode)
 	}
 
 	s.classify()
@@ -224,7 +230,7 @@ func classifyAddressing(ops []Operand) AddressingKind {
 var (
 	byteRegs  = []Register{RegAL, RegCL, RegDL, RegBL, RegAH, RegCH, RegDH, RegBH}
 	wordRegs  = []Register{RegAX, RegCX, RegDX, RegBX, RegSP, RegBP, RegSI, RegDI}
-	segRegs   = []Register{RegES, RegCS, RegSS, RegDS}
+	segRegs   = []Register{RegES, RegCS, RegSS, RegDS, RegFS, RegGS}
 	indexRegs = []BaseAddressExpr{
 		BaseBXSI, BaseBXDI, BaseBPSI, BaseBPDI, BaseSI, BaseDI, BaseBP, BaseBX,
 	}
@@ -241,6 +247,14 @@ var (
 
 func regOperand(reg Register, width OperandWidth) Operand {
 	return Operand{Kind: OperandRegister, Width: width, Register: reg}
+}
+
+func segmentRegOperand(modrm byte) (Operand, error) {
+	index := int((modrm & 0x38) >> 3)
+	if index >= len(segRegs) {
+		return Operand{}, fmt.Errorf("x86: invalid segment register encoding %d", index)
+	}
+	return regOperand(segRegs[index], Width16), nil
 }
 
 func immOperand(v uint16, width OperandWidth) Operand {
@@ -302,6 +316,34 @@ func (s *decodeState) decodeRM(modrm byte, width OperandWidth, ptr PointerQualif
 		mem.Displacement = disp
 	}
 	return memoryOperand(mem), nil
+}
+
+func decode0F(s *decodeState) error {
+	ext, err := s.readByte()
+	if err != nil {
+		return err
+	}
+	s.inst.Opcode = ext
+
+	if ext >= 0x90 && ext <= 0x9f {
+		return decodeSetCC(s, ext)
+	}
+
+	return fmt.Errorf("x86: unsupported extended opcode 0f %02x", ext)
+}
+
+func decodeSetCC(s *decodeState, ext byte) error {
+	modrm, err := s.readByte()
+	if err != nil {
+		return err
+	}
+	s.inst.Mnemonic = Mnemonic("set" + string(conditions[ext&0x0f][1:]))
+	dst, err := s.decodeRM(modrm, Width8, PtrByte)
+	if err != nil {
+		return err
+	}
+	s.withOperands(dst)
+	return nil
 }
 
 func decodeBR8(s *decodeState) error {
@@ -513,7 +555,10 @@ func decodeWS(s *decodeState) error {
 	if err != nil {
 		return err
 	}
-	src := regOperand(segRegs[(modrm&0x38)>>3], Width16)
+	src, err := segmentRegOperand(modrm)
+	if err != nil {
+		return err
+	}
 	s.withOperands(dst, src)
 	return nil
 }
@@ -527,7 +572,10 @@ func decodeSW(s *decodeState) error {
 	if err != nil {
 		return err
 	}
-	dst := regOperand(segRegs[(modrm&0x38)>>3], Width16)
+	dst, err := segmentRegOperand(modrm)
+	if err != nil {
+		return err
+	}
 	s.withOperands(dst, src)
 	return nil
 }
@@ -708,6 +756,26 @@ func decodeBitCL(width OperandWidth, ptr PointerQualifier, table []Mnemonic) dec
 			return err
 		}
 		s.withOperands(op, regOperand(RegCL, Width8))
+		return nil
+	}
+}
+
+func decodeBitImm(width OperandWidth, ptr PointerQualifier, table []Mnemonic) decodeFunc {
+	return func(s *decodeState) error {
+		modrm, err := s.readByte()
+		if err != nil {
+			return err
+		}
+		s.inst.Mnemonic = table[(modrm&0x38)>>3]
+		op, err := s.decodeRM(modrm, width, ptr)
+		if err != nil {
+			return err
+		}
+		count, err := s.readByte()
+		if err != nil {
+			return err
+		}
+		s.withOperands(op, immOperand(uint16(count), Width8))
 		return nil
 	}
 }
@@ -902,6 +970,10 @@ func prefixFromOpcode(op byte) Prefix {
 		return PrefixSS
 	case 0x3e:
 		return PrefixDS
+	case 0x64:
+		return PrefixFS
+	case 0x65:
+		return PrefixGS
 	case 0x66:
 		return PrefixOp32
 	case 0xf0:
@@ -929,6 +1001,12 @@ func prefixSegmentRegister(p Prefix) *Register {
 	case PrefixDS:
 		r := RegDS
 		return &r
+	case PrefixFS:
+		r := RegFS
+		return &r
+	case PrefixGS:
+		r := RegGS
+		return &r
 	default:
 		return nil
 	}
@@ -955,7 +1033,7 @@ var opcodeTable = func() [256]opcodeEntry {
 	set(0x0c, "or", decodeALD8, 0)
 	set(0x0d, "or", decodeAXD16, 0)
 	set(0x0e, "push", decodePushPopSeg, 0)
-	set(0x0f, "db", decodeDataByte, 0)
+	set(0x0f, "", decode0F, 0)
 	set(0x10, "adc", decodeBR8, 0)
 	set(0x11, "adc", decodeWR16, 0)
 	set(0x12, "adc", decodeR8B, 0)
@@ -1019,10 +1097,16 @@ var opcodeTable = func() [256]opcodeEntry {
 	for op := byte(0x60); op <= 0x65; op++ {
 		set(op, "db", decodeDataByte, 0)
 	}
+	set(0x64, "fs", nil, flagPrefix)
+	set(0x65, "gs", nil, flagPrefix)
 	set(0x66, "32", nil, flagPrefix)
 	for op := byte(0x67); op <= 0x6f; op++ {
 		set(op, "db", decodeDataByte, 0)
 	}
+	set(0x68, "push", decodeD16, 0)
+	set(0x6a, "push", decodeD8, 0)
+	set(0x6e, "outs", decodeString("outs"), 0)
+	set(0x6f, "outs", decodeString("outs"), 0)
 	for op := byte(0x70); op <= 0x7f; op++ {
 		set(op, "j", decodeCondJump, 0)
 	}
@@ -1073,8 +1157,8 @@ var opcodeTable = func() [256]opcodeEntry {
 	for op := byte(0xb0); op <= 0xbf; op++ {
 		set(op, "mov", decodeRD, 0)
 	}
-	set(0xc0, "db", decodeDataByte, 0)
-	set(0xc1, "db", decodeDataByte, 0)
+	set(0xc0, "", decodeBitImm(Width8, PtrByte, tableDX), 0)
+	set(0xc1, "", decodeBitImm(Width16, PtrWord, tableDX), 0)
 	set(0xc2, "ret", decodeD16, 0)
 	set(0xc3, "ret", nil, 0)
 	set(0xc4, "les", decodeR16W, 0)

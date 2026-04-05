@@ -13,7 +13,7 @@ func (inst Instruction) AssemblerString() string {
 
 	var prefixParts []string
 	for _, p := range inst.Prefixes {
-		if p == PrefixES || p == PrefixCS || p == PrefixSS || p == PrefixDS {
+		if p == PrefixES || p == PrefixCS || p == PrefixSS || p == PrefixDS || p == PrefixFS || p == PrefixGS {
 			continue
 		}
 		prefixParts = append(prefixParts, string(p))

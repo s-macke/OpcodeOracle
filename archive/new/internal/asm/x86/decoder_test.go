@@ -83,6 +83,42 @@ func TestDecodeModRMWithSegmentOverride(t *testing.T) {
 	}
 }
 
+func TestDecodeModRMWithFSOverride(t *testing.T) {
+	dec := NewDecoder()
+	inst, err := dec.Decode([]byte{0x64, 0x8b, 0x06, 0x34, 0x12}, NewFarAddress(0x1000, 0))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if len(inst.Prefixes) != 1 || inst.Prefixes[0] != PrefixFS {
+		t.Fatalf("prefixes = %+v", inst.Prefixes)
+	}
+	if got := inst.Text; got != "mov ax, fs:[1234]" {
+		t.Fatalf("text = %q", got)
+	}
+	if len(inst.Operands) != 2 || inst.Operands[1].Memory == nil || inst.Operands[1].Memory.SegmentOverride == nil || *inst.Operands[1].Memory.SegmentOverride != RegFS {
+		t.Fatalf("unexpected operands: %+v", inst.Operands)
+	}
+}
+
+func TestDecodeModRMWithGSOverride(t *testing.T) {
+	dec := NewDecoder()
+	inst, err := dec.Decode([]byte{0x65, 0x8b, 0x06, 0x34, 0x12}, NewFarAddress(0x1000, 0))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if len(inst.Prefixes) != 1 || inst.Prefixes[0] != PrefixGS {
+		t.Fatalf("prefixes = %+v", inst.Prefixes)
+	}
+	if got := inst.Text; got != "mov ax, gs:[1234]" {
+		t.Fatalf("text = %q", got)
+	}
+	if len(inst.Operands) != 2 || inst.Operands[1].Memory == nil || inst.Operands[1].Memory.SegmentOverride == nil || *inst.Operands[1].Memory.SegmentOverride != RegGS {
+		t.Fatalf("unexpected operands: %+v", inst.Operands)
+	}
+}
+
 func TestDecodeGroupedImmediateOpcode(t *testing.T) {
 	dec := NewDecoder()
 	inst, err := dec.Decode([]byte{0x83, 0xc0, 0x10}, NewFarAddress(0x1000, 0))
@@ -149,6 +185,21 @@ func TestDecodeStringInstruction(t *testing.T) {
 	}
 }
 
+func TestDecodeRepzOutsb(t *testing.T) {
+	dec := NewDecoder()
+	inst, err := dec.Decode([]byte{0xf3, 0x6e}, NewFarAddress(0x1000, 0))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if inst.Mnemonic != "outsb" {
+		t.Fatalf("mnemonic = %q", inst.Mnemonic)
+	}
+	if inst.Text != "repz outsb" {
+		t.Fatalf("text = %q", inst.Text)
+	}
+}
+
 func TestDecodeReturnWithImmediate(t *testing.T) {
 	dec := NewDecoder()
 	inst, err := dec.Decode([]byte{0xc2, 0x10, 0x00}, NewFarAddress(0x1000, 0))
@@ -206,5 +257,169 @@ func TestDecodeUsesLogicalAddressButStartsAtMemoryZero(t *testing.T) {
 	}
 	if inst.Target == nil || inst.Target.Near == nil || *inst.Target.Near != 0x0107 {
 		t.Fatalf("unexpected target: %+v", inst.Target)
+	}
+}
+
+func TestDecodeSetZRegister(t *testing.T) {
+	dec := NewDecoder()
+	inst, err := dec.Decode([]byte{0x0f, 0x94, 0xc0}, NewFarAddress(0x1000, 0x0000))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if inst.Mnemonic != "setz" {
+		t.Fatalf("mnemonic = %q", inst.Mnemonic)
+	}
+	if inst.Text != "setz al" {
+		t.Fatalf("text = %q", inst.Text)
+	}
+	if inst.Flow != FlowNone {
+		t.Fatalf("flow = %q", inst.Flow)
+	}
+}
+
+func TestDecodeSetNZMemory(t *testing.T) {
+	dec := NewDecoder()
+	inst, err := dec.Decode([]byte{0x0f, 0x95, 0x06, 0x34, 0x12}, NewFarAddress(0x1000, 0x0000))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if inst.Mnemonic != "setnz" {
+		t.Fatalf("mnemonic = %q", inst.Mnemonic)
+	}
+	if inst.Text != "setnz byte ptr [1234]" {
+		t.Fatalf("text = %q", inst.Text)
+	}
+	if len(inst.Operands) != 1 || inst.Operands[0].Memory == nil {
+		t.Fatalf("operands = %#v", inst.Operands)
+	}
+}
+
+func TestDecodeSetGMemoryWithDisplacement(t *testing.T) {
+	dec := NewDecoder()
+	inst, err := dec.Decode([]byte{0x0f, 0x9f, 0x40, 0x04}, NewFarAddress(0x1000, 0x0000))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if inst.Mnemonic != "setg" {
+		t.Fatalf("mnemonic = %q", inst.Mnemonic)
+	}
+	if inst.Text != "setg byte ptr [bx+si+4]" {
+		t.Fatalf("text = %q", inst.Text)
+	}
+}
+
+func TestDecodeUnsupportedExtendedOpcodeReturnsError(t *testing.T) {
+	dec := NewDecoder()
+	_, err := dec.Decode([]byte{0x0f, 0x31}, NewFarAddress(0x1000, 0x0000))
+	if err == nil {
+		t.Fatal("expected error")
+	}
+	if !strings.Contains(err.Error(), "unsupported extended opcode 0f 31") {
+		t.Fatalf("error = %v", err)
+	}
+}
+
+func TestDecodeUnsupportedOpcodeReturnsError(t *testing.T) {
+	dec := NewDecoder()
+	_, err := dec.Decode([]byte{0x6d}, NewFarAddress(0x1000, 0x0000))
+	if err == nil {
+		t.Fatal("expected error")
+	}
+	if !strings.Contains(err.Error(), "unsupported opcode sequence starting with 6d") {
+		t.Fatalf("error = %v", err)
+	}
+}
+
+func TestDecodeUnsupportedOp32PrefixReturnsError(t *testing.T) {
+	dec := NewDecoder()
+	_, err := dec.Decode([]byte{0x66, 0xa5}, NewFarAddress(0x1000, 0x0000))
+	if err == nil {
+		t.Fatal("expected error")
+	}
+	if !strings.Contains(err.Error(), "unsupported operand-size override prefix 66") {
+		t.Fatalf("error = %v", err)
+	}
+}
+
+func TestDecodeTruncatedExtendedOpcodeReturnsEOF(t *testing.T) {
+	dec := NewDecoder()
+	_, err := dec.Decode([]byte{0x0f}, NewFarAddress(0x1000, 0x0000))
+	if err == nil {
+		t.Fatal("expected error")
+	}
+}
+
+func TestDecodePushImm8(t *testing.T) {
+	dec := NewDecoder()
+	inst, err := dec.Decode([]byte{0x6a, 0xff}, NewFarAddress(0x1000, 0x0000))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if inst.Mnemonic != "push" {
+		t.Fatalf("mnemonic = %q", inst.Mnemonic)
+	}
+	if inst.Text != "push ff" {
+		t.Fatalf("text = %q", inst.Text)
+	}
+	if len(inst.Operands) != 1 || inst.Operands[0].Kind != OperandImmediate || inst.Operands[0].Immediate != 0xff {
+		t.Fatalf("operands = %#v", inst.Operands)
+	}
+}
+
+func TestDecodePushImm16(t *testing.T) {
+	dec := NewDecoder()
+	inst, err := dec.Decode([]byte{0x68, 0x34, 0x12}, NewFarAddress(0x1000, 0x0000))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if inst.Mnemonic != "push" {
+		t.Fatalf("mnemonic = %q", inst.Mnemonic)
+	}
+	if inst.Text != "push 1234" {
+		t.Fatalf("text = %q", inst.Text)
+	}
+	if len(inst.Operands) != 1 || inst.Operands[0].Kind != OperandImmediate || inst.Operands[0].Immediate != 0x1234 {
+		t.Fatalf("operands = %#v", inst.Operands)
+	}
+}
+
+func TestDecodeShiftByteImmediateCount(t *testing.T) {
+	dec := NewDecoder()
+	inst, err := dec.Decode([]byte{0xc0, 0xe0, 0x04}, NewFarAddress(0x1000, 0x0000))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if inst.Mnemonic != "shl" {
+		t.Fatalf("mnemonic = %q", inst.Mnemonic)
+	}
+	if inst.Text != "shl al, 04" {
+		t.Fatalf("text = %q", inst.Text)
+	}
+	if len(inst.Operands) != 2 || inst.Operands[0].Register != RegAL || inst.Operands[1].Immediate != 0x04 {
+		t.Fatalf("operands = %#v", inst.Operands)
+	}
+}
+
+func TestDecodeShiftWordImmediateCount(t *testing.T) {
+	dec := NewDecoder()
+	inst, err := dec.Decode([]byte{0xc1, 0xe0, 0x04}, NewFarAddress(0x1000, 0x0000))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if inst.Mnemonic != "shl" {
+		t.Fatalf("mnemonic = %q", inst.Mnemonic)
+	}
+	if inst.Text != "shl ax, 04" {
+		t.Fatalf("text = %q", inst.Text)
+	}
+	if len(inst.Operands) != 2 || inst.Operands[0].Register != RegAX || inst.Operands[1].Immediate != 0x04 {
+		t.Fatalf("operands = %#v", inst.Operands)
 	}
 }

@@ -47,6 +47,12 @@ type Analyzer struct {
 	queue        []uint16
 }
 
+type Analyzer struct {
+	visited      map[uint32]bool
+	operandBytes map[uint32]bool // tracks operand byte addresses
+	queue        []uint32
+}
+
 type seedMode uint8
 
 const (

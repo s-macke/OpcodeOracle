@@ -4,8 +4,9 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"sort"
 
-	"opcodeoracle/internal/asm/x86"
+	"opcodeoracle/internal/analysis"
 	binfile "opcodeoracle/internal/binary"
 )
 
@@ -31,19 +32,31 @@ func main() {
 		fmt.Printf("  [%d] %s\n", i, ep.String())
 	}
 
-	dec := x86.NewDecoder()
-	for i, ep := range bin.EntryPoints {
-		fmt.Printf("\nEntryPoint[%d]: %s\n", i, ep.String())
-		view, err := bin.DataAt(ep)
-		if err != nil {
-			fmt.Fprintf(os.Stderr, "entrypoint[%d] translation failed: %v\n", i, err)
-			continue
-		}
-		inst, err := dec.Decode(view, ep)
-		if err != nil {
-			fmt.Fprintf(os.Stderr, "entrypoint[%d] decode failed: %v\n", i, err)
-			continue
-		}
-		fmt.Print(inst.DetailsString())
+	result, err := analysis.NewAnalyzer().Analyze(bin)
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		os.Exit(1)
 	}
+
+	for _, stop := range result.DecodeStops {
+		fmt.Fprintf(os.Stderr, "warning: decode stopped at %s: %v\n", stop.Address.String(), stop.Err)
+	}
+
+	addresses := sortedInstructionAddresses(result)
+	fmt.Printf("Instructions: %d\n", len(addresses))
+	for _, linear := range addresses {
+		inst := result.Instructions[linear]
+		fmt.Printf("%s  %s\n", inst.Address.String(), inst.Text)
+	}
+}
+
+func sortedInstructionAddresses(result analysis.Result) []uint32 {
+	addresses := make([]uint32, 0, len(result.Instructions))
+	for linear := range result.Instructions {
+		addresses = append(addresses, linear)
+	}
+	sort.Slice(addresses, func(i, j int) bool {
+		return addresses[i] < addresses[j]
+	})
+	return addresses
 }
