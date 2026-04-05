@@ -4,10 +4,10 @@ import (
 	"flag"
 	"fmt"
 	"os"
-	"sort"
 
 	"opcodeoracle/internal/analysis"
 	binfile "opcodeoracle/internal/binary"
+	"opcodeoracle/internal/disasm"
 )
 
 func main() {
@@ -42,21 +42,12 @@ func main() {
 		fmt.Fprintf(os.Stderr, "warning: decode stopped at %s: %v\n", stop.Address.String(), stop.Err)
 	}
 
-	addresses := sortedInstructionAddresses(result)
-	fmt.Printf("Instructions: %d\n", len(addresses))
-	for _, linear := range addresses {
-		inst := result.Instructions[linear]
-		fmt.Printf("%s  %s\n", inst.Address.String(), inst.Text)
+	dis := disasm.NewDisassembler()
+	lines, err := dis.Disassemble(bin, result)
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		os.Exit(1)
 	}
-}
 
-func sortedInstructionAddresses(result analysis.Result) []uint32 {
-	addresses := make([]uint32, 0, len(result.Instructions))
-	for linear := range result.Instructions {
-		addresses = append(addresses, linear)
-	}
-	sort.Slice(addresses, func(i, j int) bool {
-		return addresses[i] < addresses[j]
-	})
-	return addresses
+	fmt.Println(dis.String(lines))
 }
