@@ -71,6 +71,32 @@ func TestDisassemblePureDataChunksTo16Bytes(t *testing.T) {
 	}
 }
 
+func TestDisassembleDataCarriesIntoNextSegment(t *testing.T) {
+	bin := binfile.New(
+		make([]byte, 32),
+		x86.NewFarAddress(0x1000, 0xfff8),
+		x86.NewFarAddress(0x1000, 0xfffe),
+		nil,
+	)
+
+	lines, err := NewDisassembler().Disassemble(bin, analysis.Result{
+		Instructions: map[uint32]x86.Instruction{},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if len(lines) != 2 {
+		t.Fatalf("lines = %d", len(lines))
+	}
+	if lines[0].Address != x86.NewFarAddress(0x1fff, 0x0008) {
+		t.Fatalf("first line address = %s", lines[0].Address.String())
+	}
+	if lines[1].Address != x86.NewFarAddress(0x2000, 0x0008) {
+		t.Fatalf("second line address = %s", lines[1].Address.String())
+	}
+}
+
 func TestDisassembleMixedCodeAndData(t *testing.T) {
 	bin := binfile.New(
 		[]byte{0x90, 0x82, 0xc8, 0xc3},

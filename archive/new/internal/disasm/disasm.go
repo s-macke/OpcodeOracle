@@ -127,5 +127,6 @@ func formatASCII(data []byte) string {
 }
 
 func offsetAddress(origin x86.FarAddress, offset int) x86.FarAddress {
-	return x86.NewFarAddress(origin.Segment, origin.Offset+uint16(offset))
+	linear := origin.Linear() + uint32(offset)
+	return x86.NewFarAddress(uint16(linear>>4), uint16(linear&0x000f))
 }
