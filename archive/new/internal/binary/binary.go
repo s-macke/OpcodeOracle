@@ -71,6 +71,29 @@ func (b Binary) DataAt(addr x86.FarAddress) ([]byte, error) {
 	return b.Data[imageOffset:], nil
 }
 
+func (b Binary) ReadWord(addr x86.FarAddress) (uint16, error) {
+	imageOffset, err := b.ImageOffset(addr)
+	if err != nil {
+		return 0, err
+	}
+	if imageOffset+1 >= len(b.Data) {
+		return 0, fmt.Errorf("address %s is outside binary image", addr.String())
+	}
+	return binary.LittleEndian.Uint16(b.Data[imageOffset : imageOffset+2]), nil
+}
+
+func (b Binary) ReadFarPointer(addr x86.FarAddress) (x86.FarAddress, error) {
+	offset, err := b.ReadWord(addr)
+	if err != nil {
+		return x86.FarAddress{}, err
+	}
+	segment, err := b.ReadWord(x86.NewFarAddress(addr.Segment, addr.Offset+2))
+	if err != nil {
+		return x86.FarAddress{}, err
+	}
+	return x86.NewFarAddress(segment, offset), nil
+}
+
 func NewFromCOMFile(path string) (Binary, error) {
 	data, err := os.ReadFile(path)
 	if err != nil {
